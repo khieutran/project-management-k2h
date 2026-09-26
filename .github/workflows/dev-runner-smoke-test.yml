@@ -1,0 +1,37 @@
+name: DEV runner smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    name: Verify DEV deployment runner
+    runs-on: [self-hosted, Linux, X64, dev]
+    environment: dev
+    timeout-minutes: 5
+
+    env:
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      COMPOSE_PROJECT_NAME: ${{ vars.COMPOSE_PROJECT_NAME }}
+
+    steps:
+      - name: Check runner identity
+        run: |
+          hostname
+          whoami
+          id
+
+      - name: Check deployment tools
+        run: |
+          docker version
+          docker compose version
+          nginx -v
+
+      - name: Check deployment directory
+        run: |
+          test -d "$DEPLOY_PATH"
+          test -w "$DEPLOY_PATH"
+          echo "DEV runner is ready"
