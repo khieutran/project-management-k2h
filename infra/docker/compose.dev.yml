@@ -1,0 +1,94 @@
+name: project-management-k2h-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  api:
+    image: project-management-k2h-api:dev
+    restart: unless-stopped
+    init: true
+
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      API_PORT: 3000
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    ports:
+      - "127.0.0.1:3000:3000"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  web:
+    image: project-management-k2h-web:dev
+    restart: unless-stopped
+
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+
+    ports:
+      - "127.0.0.1:8080:8080"
+
+    depends_on:
+      api:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  postgres_dev_data:
