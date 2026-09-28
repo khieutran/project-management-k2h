@@ -13,7 +13,11 @@
         "lint": "pnpm -r --if-present run lint",
         "typecheck": "pnpm -r --if-present run typecheck",
         "test": "pnpm -r --if-present run test",
-        "test:e2e": "pnpm --filter @project-management/api run test:e2e"
+        "test:e2e": "pnpm --filter @project-management/api run test:e2e",
+        "db:up": "docker compose --env-file .env -f infra/docker/compose.local.yml up -d",
+        "db:down": "docker compose --env-file .env -f infra/docker/compose.local.yml down",
+        "db:ps": "docker compose --env-file .env -f infra/docker/compose.local.yml ps",
+        "db:logs": "docker compose --env-file .env -f infra/docker/compose.local.yml logs -f postgres"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
