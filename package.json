@@ -1,0 +1,33 @@
+{
+    "name": "project-management-k2h",
+    "version": "0.1.0",
+    "private": true,
+    "packageManager": "pnpm@12.3.4",
+    "engines": {
+        "node": "24.x",
+        "pnpm": "12.x"
+    },
+    "scripts": {
+        "dev": "pnpm --parallel --filter @project-management/api --filter @project-management/web run dev",
+        "build": "pnpm -r --if-present run build",
+        "lint": "pnpm -r --if-present run lint",
+        "typecheck": "pnpm -r --if-present run typecheck",
+        "test": "pnpm -r --if-present run test",
+        "test:e2e": "pnpm --filter @project-management/api run test:e2e",
+        "db:up": "docker compose --env-file .env -f infra/docker/compose.local.yml up -d",
+        "db:down": "docker compose --env-file .env -f infra/docker/compose.local.yml down",
+        "db:ps": "docker compose --env-file .env -f infra/docker/compose.local.yml ps",
+        "db:logs": "docker compose --env-file .env -f infra/docker/compose.local.yml logs -f postgres",
+        "db:migration:create": "pnpm --filter @project-management/api migration:create",
+        "db:migration:generate": "pnpm --filter @project-management/api migration:generate",
+        "db:migration:run": "pnpm --filter @project-management/api migration:run",
+        "db:migration:show": "pnpm --filter @project-management/api migration:show",
+        "db:migration:revert": "pnpm --filter @project-management/api migration:revert"
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "eslint": "^10.11.0",
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.70.1"
+    }
+}

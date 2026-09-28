@@ -1,2 +1,30 @@
-.env
 specs-manager/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Internal planning documents
+specs-manager/
+
+# Dependencies
+node_modules/
+
+# Build and test output
+dist
+coverage/
+.vite/
+
+# Logs
+*.log
+pnpm-debug.log*
+
+# Editors
+.vscode/
+.idea/
+
+# Operating systems
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
