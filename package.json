@@ -17,7 +17,12 @@
         "db:up": "docker compose --env-file .env -f infra/docker/compose.local.yml up -d",
         "db:down": "docker compose --env-file .env -f infra/docker/compose.local.yml down",
         "db:ps": "docker compose --env-file .env -f infra/docker/compose.local.yml ps",
-        "db:logs": "docker compose --env-file .env -f infra/docker/compose.local.yml logs -f postgres"
+        "db:logs": "docker compose --env-file .env -f infra/docker/compose.local.yml logs -f postgres",
+        "db:migration:create": "pnpm --filter @project-management/api migration:create",
+        "db:migration:generate": "pnpm --filter @project-management/api migration:generate",
+        "db:migration:run": "pnpm --filter @project-management/api migration:run",
+        "db:migration:show": "pnpm --filter @project-management/api migration:show",
+        "db:migration:revert": "pnpm --filter @project-management/api migration:revert"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
