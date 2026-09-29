@@ -133,7 +133,6 @@ jobs:
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
 
       COMPOSE_SOURCE: ${{ github.workspace }}/infra/docker/compose.dev.yml
-      DEPLOY_RESULT_FILE: ${{ runner.temp }}/deployment-result.env
 
     steps:
       - name: Checkout exact deployment revision
@@ -153,6 +152,8 @@ jobs:
               --password-stdin
 
       - name: Deploy candidate release
+        env:
+          DEPLOY_RESULT_FILE: ${{ runner.temp }}/deployment-result.env
         run: |
           set -euo pipefail
 
@@ -168,6 +169,8 @@ jobs:
 
       - name: Write safe deployment summary
         if: always()
+        env:
+          DEPLOY_RESULT_FILE: ${{ runner.temp }}/deployment-result.env
         run: |
           {
             echo "## DEV deployment"

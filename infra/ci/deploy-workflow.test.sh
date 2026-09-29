@@ -250,6 +250,11 @@ assert(
   'deploy must provide a safe result file',
 );
 
+assert(
+  !/^ {6}DEPLOY_RESULT_FILE:.*runner\.temp/m.test(deployJob),
+  'runner.temp must not be evaluated in job-level env',
+);
+
 const safeResultKeys = [
   'DEPLOYMENT_STATUS',
   'MIGRATION_STATUS',
