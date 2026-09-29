@@ -5,7 +5,16 @@ on:
     branches:
       - dev
       - main
+
   workflow_dispatch:
+
+  workflow_call:
+    inputs:
+      build_container_images:
+        description: Build DEV container images
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -17,7 +26,7 @@ concurrency:
 jobs:
   foundation:
     name: Validate application foundation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
 
     env:
@@ -95,8 +104,13 @@ jobs:
         run: bash infra/docker/compose.dev.test.sh
 
       - name: Build DEV container images
+        if: ${{ github.event_name != 'workflow_call' || inputs.build_container_images }}
         run: >-
           docker compose
           --env-file .env.example
           -f infra/docker/compose.dev.yml
           build
+
+      - name: Verify API runtime migration
+        if: ${{ github.event_name != 'workflow_call' || inputs.build_container_images }}
+        run: bash infra/docker/api-runtime.test.sh --skip-build

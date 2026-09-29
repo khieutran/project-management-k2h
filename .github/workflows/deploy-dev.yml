@@ -1,0 +1,202 @@
+name: Deploy DEV
+
+on:
+  push:
+    branches:
+      - dev
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  validate-ref:
+    name: Validate DEV deployment ref
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Require the dev branch
+        env:
+          ACTUAL_REF: ${{ github.ref }}
+          EXPECTED_REF: refs/heads/dev
+        run: |
+          set -euo pipefail
+
+          if [[ "$ACTUAL_REF" != "$EXPECTED_REF" ]]; then
+            echo "ERROR: DEV deployment requires refs/heads/dev" >&2
+            exit 1
+          fi
+
+  ci:
+    name: Reuse application CI
+    needs: validate-ref
+    uses: ./.github/workflows/ci.yml
+    with:
+      build_container_images: false
+
+  build-and-publish:
+    name: Build and publish DEV images
+    needs: ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      API_IMAGE: ghcr.io/tvkhieu1998/project-management-k2h-api
+      WEB_IMAGE: ghcr.io/tvkhieu1998/project-management-k2h-web
+      IMAGE_TAG: sha-${{ github.sha }}
+      OCI_SOURCE: ${{ github.server_url }}/${{ github.repository }}
+
+    steps:
+      - name: Checkout deployment revision
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          printf '%s' "$GHCR_TOKEN" |
+            docker login ghcr.io \
+              --username "${{ github.actor }}" \
+              --password-stdin
+
+      - name: Build API image
+        run: |
+          set -euo pipefail
+
+          docker build \
+            --file apps/api/Dockerfile \
+            --label "org.opencontainers.image.source=$OCI_SOURCE" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --tag "$API_IMAGE:$IMAGE_TAG" \
+            .
+
+      - name: Build Web image
+        run: |
+          set -euo pipefail
+
+          docker build \
+            --file apps/web/Dockerfile \
+            --label "org.opencontainers.image.source=$OCI_SOURCE" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --tag "$WEB_IMAGE:$IMAGE_TAG" \
+            .
+
+      - name: Push API image
+        run: docker push "$API_IMAGE:$IMAGE_TAG"
+
+      - name: Push Web image
+        run: docker push "$WEB_IMAGE:$IMAGE_TAG"
+
+      - name: Log out from GHCR
+        if: always()
+        run: docker logout ghcr.io || true
+
+  deploy:
+    name: Deploy DEV release
+    needs: build-and-publish
+    runs-on: [self-hosted, Linux, X64, dev]
+    environment: dev
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      packages: read
+
+    env:
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      COMPOSE_PROJECT_NAME: ${{ vars.COMPOSE_PROJECT_NAME }}
+      DEV_BASE_URL: ${{ vars.DEV_BASE_URL }}
+
+      API_IMAGE: ghcr.io/tvkhieu1998/project-management-k2h-api
+      WEB_IMAGE: ghcr.io/tvkhieu1998/project-management-k2h-web
+      IMAGE_TAG: sha-${{ github.sha }}
+
+      NODE_ENV: development
+      SWAGGER_ENABLED: ${{ vars.SWAGGER_ENABLED }}
+
+      POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+      POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+
+      COMPOSE_SOURCE: ${{ github.workspace }}/infra/docker/compose.dev.yml
+      DEPLOY_RESULT_FILE: ${{ runner.temp }}/deployment-result.env
+
+    steps:
+      - name: Checkout exact deployment revision
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          printf '%s' "$GHCR_TOKEN" |
+            docker login ghcr.io \
+              --username "${{ github.actor }}" \
+              --password-stdin
+
+      - name: Deploy candidate release
+        run: |
+          set -euo pipefail
+
+          rm -f -- "$DEPLOY_RESULT_FILE"
+
+          bash infra/deploy/deploy-dev.sh
+
+          install \
+            -m 0755 \
+            -- \
+            infra/deploy/deploy-dev.sh \
+            "$DEPLOY_PATH/deploy-dev.sh"
+
+      - name: Write safe deployment summary
+        if: always()
+        run: |
+          {
+            echo "## DEV deployment"
+            echo
+
+            if [[ ! -f "$DEPLOY_RESULT_FILE" ]]; then
+              echo "Deployment result file was not produced."
+              exit 0
+            fi
+
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+
+            while IFS='=' read -r key value; do
+              case "$key" in
+                DEPLOYMENT_STATUS | \
+                MIGRATION_STATUS | \
+                DOCKER_HEALTH_STATUS | \
+                PUBLIC_HEALTH_STATUS | \
+                ROLLBACK_STATUS | \
+                DEPLOYED_SHA)
+                  printf '| `%s` | `%s` |\n' \
+                    "$key" \
+                    "$value"
+                  ;;
+              esac
+            done < "$DEPLOY_RESULT_FILE"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Log out from GHCR
+        if: always()
+        run: docker logout ghcr.io || true

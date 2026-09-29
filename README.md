@@ -8,8 +8,9 @@ Hệ thống quản lý dự án của nhóm K2H, được tổ chức theo mô 
 - Kiểm tra chất lượng bằng ESLint, Jest, Vitest và TypeScript.
 - Môi trường DEV đóng gói bằng Docker Compose.
 - CI chạy tự động bằng GitHub Actions khi tạo pull request.
+- CD tự động build, publish và triển khai DEV khi có thay đổi trên branch `dev`.
 
-> Dự án đang ở giai đoạn xây dựng nền móng. Môi trường production, quy trình triển khai tự động và các tính năng nghiệp vụ sẽ được bổ sung ở các giai đoạn tiếp theo.
+> Dự án đang ở giai đoạn xây dựng nền móng. Môi trường DEV đã có CI/CD tự động; production và các tính năng nghiệp vụ sẽ được thiết kế ở các giai đoạn tiếp theo.
 
 ## Công nghệ chính
 
@@ -35,7 +36,11 @@ project-management-k2h/
 │   └── web/                 # Ứng dụng React/Vite
 ├── packages/
 │   └── config/              # Cấu hình ESLint và TypeScript dùng chung
+├── docs/
+│   └── runbooks/            # Tài liệu vận hành môi trường
 ├── infra/
+│   ├── ci/                  # Contract tests cho GitHub Actions
+│   ├── deploy/              # Deploy engine và rollback tests
 │   ├── docker/              # Compose cho local và DEV
 │   └── nginx/               # Cấu hình Nginx của máy chủ DEV
 ├── .github/
@@ -235,7 +240,7 @@ Chạy toàn bộ các bước kiểm tra từ thư mục gốc:
 pnpm lint
 pnpm typecheck
 pnpm test
-pnpm test:e2e
+NODE_ENV=test SWAGGER_ENABLED=false pnpm test:e2e
 pnpm build
 ```
 
@@ -337,14 +342,14 @@ Trước khi push:
 pnpm lint
 pnpm typecheck
 pnpm test
-pnpm test:e2e
+NODE_ENV=test SWAGGER_ENABLED=false pnpm test:e2e
 pnpm build
 git diff --check
 ```
 
 Sau đó push branch và tạo pull request vào `dev`. Pull request phải vượt qua CI và được review trước khi merge.
 
-## Continuous Integration
+## CI/CD với GitHub Actions
 
 Workflow `.github/workflows/ci.yml` chạy trên GitHub-hosted runner khi:
 
@@ -361,7 +366,26 @@ CI thực hiện:
 6. Kiểm tra hợp đồng Docker Compose.
 7. Build các Docker image DEV.
 
-Workflow `dev-runner-smoke-test.yml` chỉ dùng để xác nhận self-hosted runner của máy DEV hoạt động. Workflow này chưa tự động triển khai ứng dụng.
+Workflow `.github/workflows/deploy-dev.yml` chạy khi:
+
+- Có commit được push hoặc merge vào branch `dev`.
+- Thành viên chạy thủ công bằng `workflow_dispatch` trên branch `dev`.
+
+Luồng CD thực hiện:
+
+1. Xác nhận deployment ref là `refs/heads/dev`.
+2. Gọi lại reusable CI mà không build trùng Docker image.
+3. Build API và Web image.
+4. Gắn tag bất biến `sha-<full-commit-sha>` và publish lên GHCR.
+5. Chạy migration trên self-hosted DEV runner.
+6. Recreate API và Web rồi kiểm tra Docker health và public health.
+7. Promote candidate khi thành công hoặc rollback application khi health check lỗi.
+
+Workflow `dev-runner-smoke-test.yml` chỉ dùng để xác nhận self-hosted runner của máy DEV hoạt động.
+
+Developer không cần `POSTGRES_PASSWORD` hoặc các secrets của DEV để cài dependencies, chạy PostgreSQL local, API, Web hoặc test trên máy cá nhân. Local sử dụng file `.env` riêng được tạo từ `.env.example`.
+
+Hướng dẫn cấu hình, theo dõi deployment, rollback và xử lý sự cố nằm trong [runbook triển khai DEV](docs/runbooks/dev-deployment.md).
 
 ## Môi trường DEV
 
@@ -385,7 +409,11 @@ Nginx trên Azure VM
 
 Azure VM không mở cổng HTTP công khai. Cloudflare Tunnel là điểm vào của lưu lượng web; SSH vẫn được giới hạn bởi Network Security Group và firewall.
 
-Việc deploy tự động từ GitHub Actions lên DEV thuộc giai đoạn tiếp theo và chưa nằm trong workflow CI hiện tại.
+Mỗi commit được merge hoặc push vào `dev` sẽ đi qua CI, được build thành hai GHCR images dùng cùng full commit SHA, sau đó tự động triển khai bằng self-hosted runner trên Azure VM.
+
+Deploy engine chạy migration trước khi thay application containers, kiểm tra health hữu hạn và tự động rollback API/Web về canonical current release nếu candidate không khỏe mạnh. Migration database không được tự động revert.
+
+Xem quy trình vận hành đầy đủ tại [docs/runbooks/dev-deployment.md](docs/runbooks/dev-deployment.md).
 
 ## Bảo mật và quản lý secrets
 
@@ -409,10 +437,11 @@ Foundation hiện đã cung cấp:
 - Unit test, E2E test, lint, typecheck và build.
 - Docker image và DEV Compose.
 - CI kiểm tra nền móng ứng dụng.
+- CD tự động publish immutable images lên GHCR và triển khai DEV.
+- Deploy engine hỗ trợ migration, health check, promotion và rollback application.
 
 Các phần chưa thuộc phạm vi hiện tại:
 
 - Chức năng quản lý người dùng, dự án, công việc và phân quyền.
-- Quy trình CD tự động lên máy chủ DEV.
 - Hạ tầng production, backup và disaster recovery.
 - Monitoring, logging tập trung và cảnh báo production.
