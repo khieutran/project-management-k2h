@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+REPOSITORY_ROOT="$(
+  cd "$(dirname "${BASH_SOURCE[0]}")/../.." &&
+    pwd
+)"
+
+CI_FILE="$REPOSITORY_ROOT/.github/workflows/ci.yml"
+
+if [[ ! -f "$CI_FILE" ]]; then
+  echo "FAIL: missing $CI_FILE" >&2
+  exit 1
+fi
+
+node - "$CI_FILE" <<'NODE'
+const fs = require('node:fs');
+
+const ciFile = process.argv[2];
+const source = fs.readFileSync(ciFile, 'utf8');
+
+function assert(condition, message) {
+  if (!condition) {
+    console.error(`FAIL: ${message}`);
+    process.exit(1);
+  }
+}
+
+assert(
+  source.includes('  workflow_call:'),
+  'CI workflow must define workflow_call',
+);
+
+assert(
+  source.includes('      build_container_images:'),
+  'workflow_call must define build_container_images input',
+);
+
+assert(
+  source.includes('        type: boolean'),
+  'build_container_images must be a boolean input',
+);
+
+assert(
+  source.includes('        default: true'),
+  'build_container_images must default to true',
+);
+
+assert(
+  source.includes('runs-on: ubuntu-24.04'),
+  'CI jobs must use ubuntu-24.04',
+);
+
+assert(
+  !source.includes('ubuntu-latest'),
+  'CI workflow must not use ubuntu-latest',
+);
+
+assert(
+  /pull_request:\s*\n\s+branches:\s*\n\s+- dev\s*\n\s+- main/.test(
+    source,
+  ),
+  'CI must run for pull requests into dev and main',
+);
+
+assert(
+  source.includes('  workflow_dispatch:'),
+  'CI must keep the workflow_dispatch trigger',
+);
+
+assert(
+  /permissions:\s*\n\s+contents: read/.test(source),
+  'CI default permissions must only allow contents: read',
+);
+
+const buildStepName = '- name: Build DEV container images';
+const buildStepStart = source.indexOf(buildStepName);
+
+assert(
+  buildStepStart >= 0,
+  'CI must contain the DEV container image build step',
+);
+
+const buildStep = source.slice(buildStepStart);
+
+const expectedCondition =
+  "if: ${{ github.event_name != 'workflow_call' || inputs.build_container_images }}";
+
+assert(
+  buildStep.includes(expectedCondition),
+  'DEV image build step must honor build_container_images',
+);
+
+assert(
+  buildStep.indexOf(expectedCondition) < buildStep.indexOf('run:'),
+  'build condition must appear before the build command',
+);
+
+console.log('PASS: CI workflow contract is valid');
+NODE
