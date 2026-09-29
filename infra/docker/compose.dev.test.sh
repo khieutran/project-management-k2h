@@ -20,21 +20,48 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-RENDERED_CONFIG="$(mktemp)"
-trap 'rm -f "$RENDERED_CONFIG"' EXIT
+DEFAULT_RENDERED_CONFIG="$(mktemp)"
+OVERRIDE_RENDERED_CONFIG="$(mktemp)"
 
-docker compose \
-  --env-file "$ENV_FILE" \
-  -f "$COMPOSE_FILE" \
-  config \
-  --format json > "$RENDERED_CONFIG"
+trap '
+  rm -f \
+    "$DEFAULT_RENDERED_CONFIG" \
+    "$OVERRIDE_RENDERED_CONFIG"
+' EXIT
 
-node - "$RENDERED_CONFIG" <<'NODE'
+env \
+  -u API_IMAGE \
+  -u WEB_IMAGE \
+  -u IMAGE_TAG \
+  docker compose \
+    --env-file "$ENV_FILE" \
+    -f "$COMPOSE_FILE" \
+    config \
+    --format json > "$DEFAULT_RENDERED_CONFIG"
+
+API_IMAGE="ghcr.io/example/project-management-k2h-api" \
+WEB_IMAGE="ghcr.io/example/project-management-k2h-web" \
+IMAGE_TAG="sha-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" \
+  docker compose \
+    --env-file "$ENV_FILE" \
+    -f "$COMPOSE_FILE" \
+    config \
+    --format json > "$OVERRIDE_RENDERED_CONFIG"
+
+node \
+  - "$DEFAULT_RENDERED_CONFIG" "$OVERRIDE_RENDERED_CONFIG" \
+  <<'NODE'
 const fs = require('node:fs');
 
-const renderedConfigPath = process.argv[2];
+const defaultRenderedConfigPath = process.argv[2];
+const overrideRenderedConfigPath = process.argv[3];
+
 const config = JSON.parse(
-  fs.readFileSync(renderedConfigPath, 'utf8'),
+  fs.readFileSync(defaultRenderedConfigPath, 'utf8'),
+);
+
+const overrideConfig = JSON.parse(
+  fs.readFileSync(overrideRenderedConfigPath, 'utf8'),
 );
 
 function assert(condition, message) {
@@ -78,6 +105,51 @@ function assertLoopbackPort(
 const postgres = getService('postgres');
 const api = getService('api');
 const web = getService('web');
+
+assert(
+  api.image === 'project-management-k2h-api:dev',
+  'default API image must be project-management-k2h-api:dev',
+);
+
+assert(
+  web.image === 'project-management-k2h-web:dev',
+  'default Web image must be project-management-k2h-web:dev',
+);
+
+assert(
+  api.build,
+  'API service must retain its local build configuration',
+);
+
+assert(
+  web.build,
+  'Web service must retain its local build configuration',
+);
+
+const overrideApi = overrideConfig.services?.api;
+const overrideWeb = overrideConfig.services?.web;
+
+assert(
+  overrideApi,
+  'override config must contain API service',
+);
+
+assert(
+  overrideWeb,
+  'override config must contain Web service',
+);
+
+assert(
+  overrideApi.image ===
+    'ghcr.io/example/project-management-k2h-api:sha-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  'API image must honor API_IMAGE and IMAGE_TAG',
+);
+
+assert(
+  overrideWeb.image ===
+    'ghcr.io/example/project-management-k2h-web:sha-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  'Web image must honor WEB_IMAGE and IMAGE_TAG',
+);
 
 for (const [serviceName, service] of Object.entries(services)) {
   const ports = service.ports ?? [];

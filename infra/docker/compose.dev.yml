@@ -25,7 +25,7 @@ services:
       start_period: 5s
 
   api:
-    image: project-management-k2h-api:dev
+    image: "${API_IMAGE:-project-management-k2h-api}:${IMAGE_TAG:-dev}"
     restart: unless-stopped
     init: true
 
@@ -65,7 +65,7 @@ services:
       start_period: 10s
 
   web:
-    image: project-management-k2h-web:dev
+    image: "${WEB_IMAGE:-project-management-k2h-web}:${IMAGE_TAG:-dev}"
     restart: unless-stopped
 
     build:
