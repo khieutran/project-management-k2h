@@ -97,5 +97,36 @@ assert(
   'build condition must appear before the build command',
 );
 
+const runtimeStepName =
+  '- name: Verify API runtime migration';
+
+const runtimeStepStart =
+  source.indexOf(runtimeStepName);
+
+assert(
+  runtimeStepStart >= 0,
+  'CI must verify production API migrations',
+);
+
+const runtimeStep = source.slice(runtimeStepStart);
+
+assert(
+  runtimeStep.includes(expectedCondition),
+  'API runtime migration step must honor build_container_images',
+);
+
+assert(
+  runtimeStep.includes(
+    'bash infra/docker/api-runtime.test.sh --skip-build',
+  ),
+  'CI must run the API runtime migration test',
+);
+
+assert(
+  runtimeStep.indexOf(expectedCondition) <
+    runtimeStep.indexOf('run:'),
+  'runtime migration condition must appear before its command',
+);
+
 console.log('PASS: CI workflow contract is valid');
 NODE

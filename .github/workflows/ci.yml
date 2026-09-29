@@ -110,3 +110,7 @@ jobs:
           --env-file .env.example
           -f infra/docker/compose.dev.yml
           build
+
+      - name: Verify API runtime migration
+        if: ${{ github.event_name != 'workflow_call' || inputs.build_container_images }}
+        run: bash infra/docker/api-runtime.test.sh --skip-build
