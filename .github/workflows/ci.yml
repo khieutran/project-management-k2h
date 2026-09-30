@@ -34,6 +34,15 @@ jobs:
       API_PORT: 3000
       SWAGGER_ENABLED: "false"
 
+      JWT_ACCESS_SECRET: ci-test-jwt-secret-minimum-32-characters
+      JWT_ACCESS_TTL_SECONDS: "900"
+
+      REFRESH_TOKEN_PEPPER: ci-test-refresh-pepper-minimum-32-characters
+      REFRESH_TOKEN_TTL_SECONDS: "604800"
+
+      AUTH_COOKIE_SECURE: "false"
+      AUTH_COOKIE_SAME_SITE: lax
+
       POSTGRES_HOST: 127.0.0.1
       POSTGRES_PORT: 5432
       POSTGRES_HOST_PORT: 5432

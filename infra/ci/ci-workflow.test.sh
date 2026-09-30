@@ -128,5 +128,21 @@ assert(
   'runtime migration condition must appear before its command',
 );
 
+const requiredAuthTestEnvironment = [
+  'JWT_ACCESS_SECRET: ci-test-jwt-secret-minimum-32-characters',
+  'JWT_ACCESS_TTL_SECONDS: "900"',
+  'REFRESH_TOKEN_PEPPER: ci-test-refresh-pepper-minimum-32-characters',
+  'REFRESH_TOKEN_TTL_SECONDS: "604800"',
+  'AUTH_COOKIE_SECURE: "false"',
+  'AUTH_COOKIE_SAME_SITE: lax',
+]
+
+for (const expectedEnvironment of requiredAuthTestEnvironment) {
+  assert (
+    source.includes(expectedEnvironment),
+    `CI environment must contain ${expectedEnvironment.split(':')[0]}`
+  );
+}
+
 console.log('PASS: CI workflow contract is valid');
 NODE

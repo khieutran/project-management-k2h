@@ -230,6 +230,44 @@ assert(
   'deploy must read PostgreSQL password from the dev environment secret',
 );
 
+const requiredDevAuthEnvironment = [
+  [
+    'JWT_ACCESS_SECRET',
+    '${{ secrets.JWT_ACCESS_SECRET }}',
+  ],
+  [
+    'JWT_ACCESS_TTL_SECONDS',
+    '${{ vars.JWT_ACCESS_TTL_SECONDS }}',
+  ],
+  [
+    'REFRESH_TOKEN_PEPPER',
+    '${{ secrets.REFRESH_TOKEN_PEPPER }}'
+  ],
+  [
+    'REFRESH_TOKEN_TTL_SECONDS',
+    '${{ vars.REFRESH_TOKEN_TTL_SECONDS }}',
+  ],
+  [
+    'AUTH_COOKIE_SECURE',
+    '${{ vars.AUTH_COOKIE_SECURE }}',
+  ],
+  [
+    'AUTH_COOKIE_SAME_SITE',
+    '${{ vars.AUTH_COOKIE_SAME_SITE }}',
+  ]
+]
+
+for (
+  const [variableName, expectedSource] of requiredDevAuthEnvironment
+) {
+  assert (
+    deployJob.includes(
+      `${variableName}: ${expectedSource}`,
+    ),
+    `deploy must configure ${variableName} from ${expectedSource}`,
+  );
+}
+
 assert(
   deployJob.includes('IMAGE_TAG: sha-${{ github.sha }}'),
   'deploy must use the immutable workflow SHA image tag',

@@ -82,6 +82,82 @@ validate_postgres_password() {
   fi
 }
 
+validate_auth_secret() {
+  local variable_name="$1"
+  local secret="$2"
+
+  if [[ ! "$secret" =~ ^[A-Za-z0-9._~!@%+=:,-]{32,256}$ ]]; then
+    prinf 'ERROR: %s does not satisfy the DEV secret contract\n' \
+      "$variable_name" \
+      >&2
+    return 1
+  fi
+}
+
+validate_integer_in_range() {
+  local variable_name="$1"
+  local value="$2"
+  local minimum="$3"
+  local maximum="$4"
+
+  if [[ ! "$value" =~ ^[0-9]{1,10}$ ]]; then
+    printf \
+      'ERROR: %s must be an integer between %s and %s\n' \
+      "$variable_name" \
+      "$minimum" \
+      "$maximum" \
+      >&2
+    return 1
+  fi
+
+  local numeric_value=$((10#$value))
+
+  if ((
+    (numeric_value < minimum) ||
+    (numeric_value > maximum)
+  )); then
+    printf \
+      'ERROR: %s must be an integer between %s and %s\n' \
+      "$variable_name" \
+      "$minimum" \
+      "$maximum" \
+      >&2
+    return 1
+  fi
+}
+
+validate_cookie_policy() {
+  local secure="$1"
+  local same_site="$2"
+
+  if [[ "$secure" != 'true' && "$secure" != 'false' ]]; then
+    echo \
+      'ERROR: AUTH_COOKIE_SECURE must be true or false' \
+      >&2
+    return 1
+  fi
+
+  if (
+    [[ "$same_site" != 'lax' ]] &&
+    [[ "$same_site" != 'strict' ]] &&
+    [[ "$same_site" != 'none' ]]
+  ); then
+    echo \
+      'ERROR: AUTH_COOKIE_SAME_SITE must be lax, strict, or none' \
+      >&2
+    return 1
+  fi
+
+  if [[ "$same_site" == 'none' && "$secure" != 'true' ]]; then
+    echo \
+      'ERROR: SameSite none requires a secure Auth cookie' \
+      >&2
+    return 1
+  fi
+}
+
+
+
 write_deployment_result() {
   local result_file="$1"
 
@@ -115,6 +191,13 @@ render_candidate_environment() {
       printf 'NODE_ENV=%s\n' "$NODE_ENV"
       printf 'API_PORT=3000\n'
       printf 'SWAGGER_ENABLED=%s\n' "$SWAGGER_ENABLED"
+
+      printf 'JWT_ACCESS_SECRET=%s\n' "$JWT_ACCESS_SECRET"
+      printf 'JWT_ACCESS_TTL_SECONDS=%s\n' "$JWT_ACCESS_TTL_SECONDS"
+      printf 'REFRESH_TOKEN_PEPPER=%s\n' "$REFRESH_TOKEN_PEPPER"
+      printf 'REFRESH_TOKEN_TTL_SECONDS=%s\n' "$REFRESH_TOKEN_TTL_SECONDS"
+      printf 'AUTH_COOKIE_SECURE=%s\n' "$AUTH_COOKIE_SECURE"
+      printf 'AUTH_COOKIE_SAME_SITE=%s\n' "$AUTH_COOKIE_SAME_SITE"
 
       printf 'POSTGRES_HOST=postgres\n'
       printf 'POSTGRES_PORT=5432\n'
@@ -356,6 +439,12 @@ main() {
     IMAGE_TAG
     NODE_ENV
     SWAGGER_ENABLED
+    JWT_ACCESS_SECRET
+    JWT_ACCESS_TTL_SECONDS
+    REFRESH_TOKEN_PEPPER
+    REFRESH_TOKEN_TTL_SECONDS
+    AUTH_COOKIE_SECURE
+    AUTH_COOKIE_SAME_SITE
     POSTGRES_DB
     POSTGRES_USER
     POSTGRES_PASSWORD
@@ -371,6 +460,12 @@ main() {
   validate_image_tag "$IMAGE_TAG"
   validate_deploy_path "$DEPLOY_ROOT" "$DEPLOY_PATH"
   validate_postgres_password "$POSTGRES_PASSWORD"
+
+  validate_auth_secret JWT_ACCESS_SECRET "$JWT_ACCESS_SECRET"
+  validate_auth_secret REFRESH_TOKEN_PEPPER "$REFRESH_TOKEN_PEPPER"
+  validate_integer_in_range JWT_ACCESS_TTL_SECONDS "$JWT_ACCESS_TTL_SECONDS" 60 3600
+  validate_integer_in_range REFRESH_TOKEN_TTL_SECONDS "$REFRESH_TOKEN_TTL_SECONDS" 3600 2592000
+  validate_cookie_policy "$AUTH_COOKIE_SECURE" "$AUTH_COOKIE_SAME_SITE"
 
   DEPLOYED_SHA="${IMAGE_TAG#sha-}"
 

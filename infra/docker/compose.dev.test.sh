@@ -175,6 +175,30 @@ assert(
   'api POSTGRES_HOST must equal "postgres"',
 );
 
+const requiredApiAuthEnvironment = [
+  'JWT_ACCESS_SECRET',
+  'JWT_ACCESS_TTL_SECONDS',
+  'REFRESH_TOKEN_PEPPER',
+  'REFRESH_TOKEN_TTL_SECONDS',
+  'AUTH_COOKIE_SECURE',
+  'AUTH_COOKIE_SAME_SITE',
+];
+
+for (const variableName of requiredApiAuthEnvironment) {
+  assert(
+    Object.prototype.hasOwnProperty.call(
+      api.environment ?? {},
+      variableName,
+    ),
+    `api environment must contain ${variableName}`
+  );
+
+  assert(
+    String(api.environment[variableName]).length > 0,
+    `api environment ${variableName} must not be empty`,
+  );
+}
+
 assert(
   postgres.healthcheck?.test,
   'postgres must define a healthcheck',
