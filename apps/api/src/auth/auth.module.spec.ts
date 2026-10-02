@@ -2,6 +2,7 @@ import { MODULE_METADATA } from '@nestjs/common/constants';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
+import { RefreshSession } from '../refresh-sessions/entities/refresh-session.entity';
 import { AuthModule } from './auth.module';
 import { RefreshSessionsModule } from '../refresh-sessions/refresh-sessions.module';
 import { UsersModule } from '../users/users.module';
@@ -19,12 +20,15 @@ describe('AuthModule', () => {
 
   it('can be compiled as a Nest feature module', async () => {
     const userRepository = {};
+    const refreshSessionRepository = {};
 
     const testingModule = await Test.createTestingModule({
       imports: [AuthModule],
     })
       .overrideProvider(getRepositoryToken(User))
       .useValue(userRepository)
+      .overrideProvider(getRepositoryToken(RefreshSession))
+      .useValue(refreshSessionRepository)
       .compile();
 
     expect(testingModule).toBeDefined();
