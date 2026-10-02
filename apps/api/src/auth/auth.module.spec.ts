@@ -7,6 +7,7 @@ import { AuthModule } from './auth.module';
 import { RefreshSessionsModule } from '../refresh-sessions/refresh-sessions.module';
 import { UsersModule } from '../users/users.module';
 import { User } from '../users/entities/user.entity';
+import { PasswordService } from './services/password.service';
 
 describe('AuthModule', () => {
   it('imports the user and refresh-session modules', async () => {
@@ -32,6 +33,7 @@ describe('AuthModule', () => {
       .compile();
 
     expect(testingModule).toBeDefined();
+    expect(testingModule.get(PasswordService)).toBeInstanceOf(PasswordService);
 
     await testingModule.close();
   });
