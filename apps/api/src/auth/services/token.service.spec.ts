@@ -157,4 +157,12 @@ describe('TokenService', () => {
       ).rejects.toThrow();
     });
   });
+
+  describe('getAccessTokenExpiresInSeconds', () => {
+    it('returns the configured access-token TTL', () => {
+      expect(tokenService.getAccessTokenExpiresInSeconds()).toBe(
+        jwtAccessTtlSeconds,
+      );
+    });
+  });
 });

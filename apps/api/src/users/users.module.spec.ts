@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 
 import { User } from './entities/user.entity';
 import { UsersModule } from './users.module';
+import { UsersService } from './users.service';
 
 describe('UsersModule', () => {
   it('provides the User repository', async () => {
@@ -16,6 +17,8 @@ describe('UsersModule', () => {
       .compile();
 
     expect(testingModule.get(getRepositoryToken(User))).toBe(userRepository);
+
+    expect(testingModule.get(UsersService)).toBeInstanceOf(UsersService);
 
     await testingModule.close();
   });

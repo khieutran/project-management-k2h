@@ -6,6 +6,9 @@ import { UsersModule } from '../users/users.module';
 import { RefreshSessionsModule } from '../refresh-sessions/refresh-sessions.module';
 import { PasswordService } from './services/password.service';
 import { TokenService } from './services/token.service';
+import { AuthService } from './auth.service';
+import { RefreshTokenCookieService } from './services/refresh-token-cookie.service';
+import { AuthController } from './controllers/auth.controller';
 
 @Module({
   imports: [
@@ -14,6 +17,12 @@ import { TokenService } from './services/token.service';
     UsersModule,
     RefreshSessionsModule,
   ],
-  providers: [PasswordService, TokenService],
+  controllers: [AuthController],
+  providers: [
+    AuthService,
+    PasswordService,
+    RefreshTokenCookieService,
+    TokenService,
+  ],
 })
 export class AuthModule {}

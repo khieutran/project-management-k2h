@@ -67,4 +67,8 @@ export class TokenService {
       .update(refreshToken, 'utf8')
       .digest('hex');
   }
+
+  getAccessTokenExpiresInSeconds(): number {
+    return this.jwtAccessTtlSeconds;
+  }
 }
