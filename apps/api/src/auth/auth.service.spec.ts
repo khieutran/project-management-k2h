@@ -1,5 +1,5 @@
 import { ConflictException } from '@nestjs/common';
-import type { DataSource, EntityManager } from 'typeorm';
+import { QueryFailedError, type DataSource, type EntityManager } from 'typeorm';
 
 import { RefreshSession } from '../refresh-sessions/entities/refresh-session.entity';
 import type { RefreshSessionsService } from '../refresh-sessions/refresh-sessions.service';
@@ -195,11 +195,11 @@ describe('AuthService', () => {
       usersService.create.mockResolvedValue(user);
       refreshSessionsService.createInitialSession.mockResolvedValue(session);
       tokenService.issueAccessToken.mockRejectedValue(
-        new Error('JWT siging failed'),
+        new Error('JWT signing failed'),
       );
 
       await expect(authService.register(registerInput)).rejects.toThrow(
-        'JWT siging failed',
+        'JWT signing failed',
       );
 
       expect(dataSource.transaction).toHaveBeenCalledTimes(1);
@@ -210,6 +210,61 @@ describe('AuthService', () => {
       expect(refreshSessionsService.createInitialSession).toHaveBeenCalledWith(
         expect.any(Object),
         entityManager,
+      );
+    });
+
+    it('maps a concurrent email unique violation to an auth conflict', async () => {
+      type PostgresDriverError = Error & { code: string };
+
+      const uniqueViolation = new QueryFailedError<PostgresDriverError>(
+        'INSERT INTO users ...',
+        [],
+        Object.assign(new Error('duplicate key'), {
+          code: '23505',
+        }),
+      );
+
+      usersService.findByEmail.mockResolvedValue(null);
+
+      passwordService.hash.mockResolvedValue('argon2-password-hash');
+      tokenService.generateRefreshToken.mockReturnValue(
+        'plaintext-refresh-token',
+      );
+      tokenService.digestRefreshToken.mockReturnValue('a'.repeat(64));
+      usersService.create.mockRejectedValue(uniqueViolation);
+
+      try {
+        await authService.register(registerInput);
+
+        throw new Error('Expected registration to reject duplicate email');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ConflictException);
+
+        expect((error as ConflictException).getResponse()).toEqual({
+          code: 'AUTH_EMAIL_ALREADY_EXISTS',
+          message: 'Email này đã được sử dụng',
+        });
+      }
+
+      expect(
+        refreshSessionsService.createInitialSession,
+      ).not.toHaveBeenCalled();
+      expect(tokenService.issueAccessToken).not.toHaveBeenCalled();
+    });
+
+    it('preserves non-unique database failures', async () => {
+      const databaseError = new Error('database connection lost');
+
+      usersService.findByEmail.mockResolvedValue(null);
+      passwordService.hash.mockResolvedValue('argon2-password-hash');
+      tokenService.generateRefreshToken.mockReturnValue(
+        'plaintext-refresh-token',
+      );
+      tokenService.digestRefreshToken.mockReturnValue('a'.repeat(64));
+      usersService.create.mockRejectedValue(databaseError);
+
+      await expect(authService.register(registerInput)).rejects.toBe(
+        databaseError,
       );
     });
   });
