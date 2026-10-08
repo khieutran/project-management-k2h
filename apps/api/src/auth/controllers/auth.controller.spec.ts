@@ -1,8 +1,9 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { UserRole } from '../../users/enums/user-role.enum';
 import type { AuthService } from '../auth.service';
+import type { LoginDto } from '../dto/login.dto';
 import type { RegisterDto } from '../dto/register.dto';
 import type { RefreshTokenCookieService } from '../services/refresh-token-cookie.service';
 import { AuthController } from './auth.controller';
@@ -14,8 +15,14 @@ describe('AuthController', () => {
     displayName: 'Nguyen Van A',
   };
 
+  const loginInput: LoginDto = {
+    email: 'user@example.com',
+    password: 'password-123',
+  };
+
   let authService: {
     register: jest.Mock;
+    login: jest.Mock;
   };
 
   let cookieService: { setRefreshToken: jest.Mock };
@@ -23,7 +30,10 @@ describe('AuthController', () => {
   let authController: AuthController;
 
   beforeEach(() => {
-    authService = { register: jest.fn() };
+    authService = {
+      register: jest.fn(),
+      login: jest.fn(),
+    };
     cookieService = { setRefreshToken: jest.fn() };
     response = {} as Response;
     authController = new AuthController(
@@ -74,6 +84,54 @@ describe('AuthController', () => {
         authController.register(registerInput, response),
       ).rejects.toBe(error);
 
+      expect(cookieService.setRefreshToken).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('login', () => {
+    it('sets the refresh cookie and returns only the safe auth response', async () => {
+      // Arrange
+      const authResponse = {
+        user: {
+          id: '11111111-1111-4111-8111-111111111111',
+          email: 'user@example.com',
+          displayName: 'Nguyen Van A',
+          role: UserRole.User,
+        },
+        accessToken: 'signed-access-token',
+        accessTokenExpiresIn: 900,
+      };
+
+      authService.login.mockResolvedValue({
+        response: authResponse,
+        refreshToken: 'plaintext-refresh-token',
+      });
+
+      // Act
+      const result = await authController.login(loginInput, response);
+
+      // Assert
+      expect(authService.login).toHaveBeenCalledWith(loginInput);
+      expect(cookieService.setRefreshToken).toHaveBeenCalledWith(
+        response,
+        'plaintext-refresh-token',
+      );
+      expect(result).toEqual(authResponse);
+      expect(result).not.toHaveProperty('refreshToken');
+      expect(result.user).not.toHaveProperty('passwordHash');
+    });
+
+    it('does not set a refresh cookie when login fails', async () => {
+      const error = new UnauthorizedException({
+        code: 'AUTH_INVALID_CREDENTIALS',
+        message: 'Email hoặc mật khẩu không hợp lệ',
+      });
+
+      authService.login.mockRejectedValue(error);
+
+      await expect(authController.login(loginInput, response)).rejects.toBe(
+        error,
+      );
       expect(cookieService.setRefreshToken).not.toHaveBeenCalled();
     });
   });
