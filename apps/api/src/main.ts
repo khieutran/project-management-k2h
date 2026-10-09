@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
 import type { EnvironmentVariables } from './config/environment.schema';
@@ -9,6 +10,7 @@ import { createApplicationValidationPipe } from './common/validation/create-appl
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.use(cookieParser());
   app.useGlobalPipes(createApplicationValidationPipe());
 
   const configService = app.get(ConfigService<EnvironmentVariables, true>);

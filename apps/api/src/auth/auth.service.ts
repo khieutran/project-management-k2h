@@ -121,6 +121,64 @@ export class AuthService {
     };
   }
 
+  async refresh(refreshToken: string): Promise<AuthSessionResult> {
+    const currentTokenDigest = this.tokenService.digestRefreshToken(refreshToken);
+
+    return this.dataSource.transaction(async (entityManager) => {
+      const currentSession = 
+      await this.refreshSessionsService.findByTokenDigestForUpdate(
+        currentTokenDigest,
+        entityManager,
+      );
+
+      if(!currentSession) {
+        throw this.createInvalidRefreshToken();
+      }
+
+      if(currentSession.revokedAt) {
+        throw this.createRevokedRefreshToken();
+      }
+
+      if(currentSession.expiresAt.getTime() <= Date.now()) {
+        throw this.createExpiredRefreshToken()
+      }
+
+      const user = await this.usersService.findById(
+        currentSession.userId,
+        entityManager,
+      );
+
+      if(!user) {
+        throw this.createInvalidRefreshToken();
+      }
+
+      const replacementRefreshToken = this.tokenService.generateRefreshToken();
+
+      const replacementTokenDigest = this.tokenService.digestRefreshToken(replacementRefreshToken);
+
+      const replacementSession = await this.refreshSessionsService.rotateActiveSession(
+        currentSession,
+        replacementTokenDigest,
+        entityManager,
+      );
+
+      const accessToken = await this.tokenService.issueAccessToken({
+        userId: user.id,
+        sessionId: replacementSession.id,
+        role: user.role,
+      });
+
+      return {
+        response: {
+          user: toSafeUser(user),
+          accessToken,
+          accessTokenExpiresIn: this.tokenService.getAccessTokenExpiresInSeconds(),
+        },
+        refreshToken: replacementRefreshToken,
+      };
+    });
+  }
+
   private async createUser(
     input: RegisterDto,
     passwordHash: string,
@@ -142,6 +200,7 @@ export class AuthService {
       throw error;
     }
   }
+
   private isPostgresUniqueViolation(error: unknown): boolean {
     if (!(error instanceof QueryFailedError)) {
       return false;
@@ -151,6 +210,7 @@ export class AuthService {
     };
     return driverError.code === '23505';
   }
+
   private createEmailConflict(): ConflictException {
     return new ConflictException({
       code: 'AUTH_EMAIL_ALREADY_EXISTS',
@@ -162,6 +222,27 @@ export class AuthService {
     return new UnauthorizedException({
       code: 'AUTH_INVALID_CREDENTIALS',
       message: 'Email hoặc mật khẩu không hợp lệ',
+    });
+  }
+
+  private createInvalidRefreshToken(): UnauthorizedException {
+    return new UnauthorizedException ({
+      code: 'AUTH_REFRESH_TOKEN_INVALID',
+      message: 'Refresh token không hợp lệ',
+    });
+  };
+
+  private createExpiredRefreshToken(): UnauthorizedException {
+    return new UnauthorizedException({
+      code: 'AUTH_REFRESH_TOKEN_EXPIRED',
+      message: 'Refresh token đã hết hạn',
+    });
+  }
+
+  private createRevokedRefreshToken(): UnauthorizedException {
+    return new UnauthorizedException ({
+      code: 'AUTH_REFRESH_TOKEN_REVOKED',
+      message: 'Refresh token đã bị thu hồi',
     });
   }
 }

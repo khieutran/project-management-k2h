@@ -30,6 +30,7 @@ describe('AuthService', () => {
 
   let usersService: {
     findByEmail: jest.Mock;
+    findById: jest.Mock;
     create: jest.Mock;
   };
 
@@ -47,6 +48,8 @@ describe('AuthService', () => {
 
   let refreshSessionsService: {
     createInitialSession: jest.Mock;
+    findByTokenDigestForUpdate: jest.Mock;
+    rotateActiveSession: jest.Mock;
   };
 
   let authService: AuthService;
@@ -61,6 +64,7 @@ describe('AuthService', () => {
 
     usersService = {
       findByEmail: jest.fn(),
+      findById: jest.fn(),
       create: jest.fn(),
     };
 
@@ -78,6 +82,8 @@ describe('AuthService', () => {
 
     refreshSessionsService = {
       createInitialSession: jest.fn(),
+      findByTokenDigestForUpdate: jest.fn(),
+      rotateActiveSession: jest.fn(),
     };
 
     authService = new AuthService(
@@ -518,6 +524,181 @@ describe('AuthService', () => {
         sessionId: session.id,
         role: UserRole.User,
       });
+    });
+  });
+
+  describe('refresh', () => {
+    it('rotates a valid refresh session and returns new auth data', async () => {
+      //Arrange
+      const user = Object.assign(new User(), {
+        id: '11111111-1111-4111-8111-111111111111',
+        email: 'user@example.com',
+        passwordHash: 'argon2-password-hash',
+        displayName: 'Nguyen Van A',
+        role: UserRole.User,
+      });
+
+      const currentSession = Object.assign(new RefreshSession(), {
+        id: '22222222-2222-4222-8222-222222222222',
+        userId: user.id,
+        familyId: '33333333-3333-4333-8333-333333333333',
+        tokenDigest: 'a'.repeat(64),
+        expiresAt: new Date('2099-10-12T00:00:00.000Z'),
+        revokedAt: null,
+        replacedBySessionId: null,
+      });
+
+      const replacementSession = Object.assign(new RefreshSession(), {
+        id: '44444444-4444-4444-8444-444444444444',
+        userId: user.id,
+        familyId: currentSession.familyId,
+        tokenDigest: 'b'.repeat(64),
+        expiresAt: new Date('2099-10-12T00:00:00.000Z'),
+        revokedAt: null,
+        replacedBySessionId: null,
+      });
+
+      tokenService.digestRefreshToken
+        .mockReturnValueOnce('a'.repeat(64))
+        .mockReturnValueOnce('b'.repeat(64));
+
+      tokenService.generateRefreshToken.mockReturnValue(
+        'replacement-refresh-token',
+      );
+      refreshSessionsService.findByTokenDigestForUpdate.mockResolvedValue(
+        currentSession,
+      );
+      usersService.findById.mockResolvedValue(user);
+      refreshSessionsService.rotateActiveSession.mockResolvedValue(
+        replacementSession,
+      );
+      tokenService.issueAccessToken.mockResolvedValue(
+        'replacement-access-token',
+      );
+      tokenService.getAccessTokenExpiresInSeconds.mockReturnValue(900);
+
+      //Act
+      const result = await authService.refresh('current-refresh-token');
+
+      //Assert
+      expect(tokenService.digestRefreshToken).toHaveBeenNthCalledWith(
+        1,
+        'current-refresh-token',
+      );
+      expect(
+        refreshSessionsService.findByTokenDigestForUpdate,
+      ).toHaveBeenCalledWith('a'.repeat(64), entityManager);
+      expect(usersService.findById).toHaveBeenCalledWith(
+        user.id,
+        entityManager,
+      );
+      expect(tokenService.generateRefreshToken).toHaveBeenCalledTimes(1);
+      expect(tokenService.digestRefreshToken).toHaveBeenNthCalledWith(
+        2,
+        'replacement-refresh-token',
+      );
+      expect(refreshSessionsService.rotateActiveSession).toHaveBeenCalledWith(
+        currentSession,
+        'b'.repeat(64),
+        entityManager,
+      );
+
+      expect(tokenService.issueAccessToken).toHaveBeenCalledWith({
+        userId: user.id,
+        sessionId: replacementSession.id,
+        role: UserRole.User,
+      });
+
+      expect(result).toEqual({
+        response: {
+          user: {
+            id: user.id,
+            email: user.email,
+            displayName: user.displayName,
+            role: UserRole.User,
+          },
+          accessToken: 'replacement-access-token',
+          accessTokenExpiresIn: 900,
+        },
+        refreshToken: 'replacement-refresh-token',
+      });
+
+      expect(result.response).not.toHaveProperty('refreshToken');
+      expect(result.response.user).not.toHaveProperty('passwordHash');
+    });
+
+    it('rejects an expired refresh session before creating replacement tokens', async () => {
+      //Arrange
+      const expiredSession = Object.assign(new RefreshSession(), {
+        id: '22222222-2222-4222-8222-222222222222',
+        userId: '11111111-1111-4111-8111-111111111111',
+        familyId: '33333333-3333-4333-8333-333333333333',
+        tokenDigest: 'a'.repeat(64),
+        expiresAt: new Date('2000-01-01T00:00:00.000Z'),
+        revokedAt: null,
+        replacedBySessionId: null
+      });
+
+      tokenService.digestRefreshToken.mockReturnValue('a'.repeat(64));
+
+      refreshSessionsService.findByTokenDigestForUpdate.mockResolvedValue(expiredSession);
+
+      //Act
+      try {
+        await authService.refresh('expired-refresh-token');
+
+        throw new Error ('Excepted expired refresh token to be rejected');
+      } catch (error) {
+        //Assert
+        expect(error).toBeInstanceOf(UnauthorizedException);
+
+        expect((error as UnauthorizedException).getResponse()).toEqual({
+          code: 'AUTH_REFRESH_TOKEN_EXPIRED',
+          message: 'Refresh token đã hết hạn',
+        });
+      }
+
+      expect(usersService.findById).not.toHaveBeenCalled();
+      expect(tokenService.generateRefreshToken).not.toHaveBeenCalled();
+      expect(refreshSessionsService.rotateActiveSession).not.toHaveBeenCalled();
+      expect(tokenService.issueAccessToken).not.toHaveBeenCalled();
+    });
+
+    it('rejects a revoked session that was not replaced', async () => {
+      //Arrange
+      const revokedSession = Object.assign(new RefreshSession(), {
+        id: '22222222-2222-4222-8222-222222222222',
+        userId: '11111111-1111-4111-8111-111111111111',
+        familyId: '33333333-3333-4333-8333-333333333333',
+        tokenDigest: 'a'.repeat(64),
+        expiresAt: new Date('2099-10-12T00:00:00.000Z'),
+        revokedAt: new Date ('2026-10-09T00:00:00.000Z'),
+        replacedBySessionId: null,
+      });
+
+      tokenService.digestRefreshToken.mockReturnValue('a'.repeat(64));
+
+      refreshSessionsService.findByTokenDigestForUpdate.mockResolvedValue(revokedSession);
+
+      //Act
+      try {
+        await authService.refresh('revoked-refresh-token');
+        
+        throw new Error ('Excepted revoked refresh token to be rejected');
+      } catch (error) {
+        //Assert
+        expect(error).toBeInstanceOf(UnauthorizedException);
+
+        expect((error as UnauthorizedException).getResponse()).toEqual({
+          code: 'AUTH_REFRESH_TOKEN_REVOKED',
+          message: 'Refresh token đã bị thu hồi',
+        });
+      }
+
+      expect(usersService.findById).not.toHaveBeenCalled();
+      expect(tokenService.generateRefreshToken).not.toHaveBeenCalled();
+      expect(refreshSessionsService.rotateActiveSession).not.toHaveBeenCalled();
+      expect(tokenService.issueAccessToken).not.toHaveBeenCalled();
     });
   });
 });

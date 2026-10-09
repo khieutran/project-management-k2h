@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { CookieOptions, Response } from 'express';
+import type { CookieOptions, Request, Response } from 'express';
 
 import type { EnvironmentVariables } from '../../config/environment.schema';
 
@@ -38,5 +38,13 @@ export class RefreshTokenCookieService {
 
   clearRefreshToken(response: Response): void {
     response.clearCookie(REFRESH_TOKEN_COOKIE_NAME, this.baseOptions);
+  }
+
+  getRefreshToken(request: Request): string | undefined {
+    const refreshToken = request.cookies?.[
+      REFRESH_TOKEN_COOKIE_NAME
+    ] as unknown;
+
+    return typeof refreshToken === 'string' ? refreshToken : undefined;
   }
 }

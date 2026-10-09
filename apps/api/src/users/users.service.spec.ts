@@ -137,4 +137,37 @@ describe('UsersService', () => {
       expect(repository.save).not.toHaveBeenCalled();
     });
   });
+
+  describe('findById', () => {
+    it('finds the user using the transaction repository', async () => {
+      //Arrange
+      const user = Object.assign(new User(), {
+        id: '11111111-1111-4111-8111-111111111111',
+        email: 'user@example.com',
+        passwordHash: 'argon2-password-hash',
+        displayName: 'Nguyen Van A',
+        role: UserRole.User,
+      });
+
+      const transactionalRepository = {
+        findOneBy: jest.fn().mockResolvedValue(user),
+      };
+
+      const entityManager = {
+        getRepository: jest.fn().mockReturnValue(transactionalRepository),
+      } as unknown as EntityManager;
+
+      //Act
+      const result = await usersService.findById(user.id, entityManager);
+
+      //Assert
+      expect(entityManager.getRepository).toHaveBeenCalledWith(User);
+      expect(transactionalRepository.findOneBy).toHaveBeenCalledWith({
+        id: user.id,
+      });
+
+      expect(result).toBe(user);
+      expect(repository.findOneBy).not.toHaveBeenCalled();
+    });
+  });
 });

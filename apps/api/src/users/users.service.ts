@@ -25,6 +25,12 @@ export class UsersService {
     });
   }
 
+  findById(id: string, entityManager?: EntityManager): Promise<User | null> {
+    const repository = this.getRepository(entityManager);
+
+    return repository.findOneBy({ id });
+  }
+
   async create(
     input: CreateUserInput,
     entityManager?: EntityManager,

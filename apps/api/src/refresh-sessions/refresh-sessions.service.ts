@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
-import { type EntityManager, Repository } from 'typeorm';
+import { IsNull, type EntityManager, Repository } from 'typeorm';
 
 import type { EnvironmentVariables } from '../config/environment.schema';
 import { RefreshSession } from './entities/refresh-session.entity';
@@ -42,6 +42,67 @@ export class RefreshSessionsService {
     });
 
     return repository.save(session);
+  }
+
+  async rotateActiveSession(
+    currentSession: RefreshSession,
+    newTokenDigest: string,
+    entityManager: EntityManager,
+  ): Promise<RefreshSession> {
+    const repository = this.getRepository(entityManager);
+
+    const replacement = repository.create({
+      userId: currentSession.userId,
+      familyId: currentSession.familyId,
+      tokenDigest: newTokenDigest,
+      expiresAt: new Date(
+        Date.now() + this.refreshTokenTtlSeconds * MILLISECONDS_PER_SECOND,
+      ),
+      revokedAt: null,
+      replacedBySessionId: null,
+    });
+
+    const savedReplacement = await repository.save(replacement);
+
+    currentSession.revokedAt = new Date();
+    currentSession.replacedBySessionId = savedReplacement.id;
+
+    await repository.save(currentSession);
+
+    return savedReplacement;
+  }
+
+  findByTokenDigestForUpdate(
+    tokenDigest: string,
+    entityManager: EntityManager,
+  ): Promise<RefreshSession | null> {
+    const repository = this.getRepository(entityManager);
+
+    return repository.findOne({
+      where: {
+        tokenDigest,
+      },
+      lock: {
+        mode: 'pessimistic_write',
+      },
+    });
+  }
+
+  async revokeActiveSessionsByFamilyId(
+    familyId: string,
+    entityManager: EntityManager,
+  ): Promise<void> {
+    const repository = this.getRepository(entityManager);
+
+    await repository.update(
+      {
+        familyId,
+        revokedAt: IsNull(),
+      },
+      {
+        revokedAt: new Date(),
+      },
+    );
   }
 
   private getRepository(

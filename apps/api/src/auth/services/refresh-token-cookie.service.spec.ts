@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 
 import type { EnvironmentVariables } from '../../config/environment.schema';
 import {
@@ -94,5 +94,24 @@ describe('RefreshTokenCookieService', () => {
     );
 
     expect(response.cookie).not.toHaveBeenCalled();
+  });
+
+  it('reads the refresh token from parsed request cookies', () => {
+    const configService = new ConfigService<EnvironmentVariables, true>({
+      REFRESH_TOKEN_TTL_SECONDS: refreshTokenTtlSeconds,
+      AUTH_COOKIE_SECURE: true,
+      AUTH_COOKIE_SAME_SITE: 'lax',
+    });
+
+    const cookieService = new RefreshTokenCookieService(configService);
+    const request = {
+      cookies: {
+        [REFRESH_TOKEN_COOKIE_NAME]: 'plaintext-refresh-token',
+      },
+    } as unknown as Request;
+
+    expect(cookieService.getRefreshToken(request)).toBe(
+      'plaintext-refresh-token',
+    );
   });
 });
