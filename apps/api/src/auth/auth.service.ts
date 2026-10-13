@@ -8,6 +8,7 @@ import { DataSource, QueryFailedError, type EntityManager } from 'typeorm';
 import { RefreshSessionsService } from '../refresh-sessions/refresh-sessions.service';
 import type { User } from '../users/entities/user.entity';
 import { toSafeUser } from '../users/mappers/to-safe-user';
+import type { SafeUser } from '../users/types/safe-user.type';
 import { UsersService } from '../users/users.service';
 import type { LoginDto } from './dto/login.dto';
 import type { RegisterDto } from './dto/register.dto';
@@ -227,6 +228,16 @@ export class AuthService {
     );
   }
 
+  async getCurrentUser(userId: string): Promise<SafeUser> {
+    const user = await this.usersService.findById(userId);
+
+    if (!user) {
+      throw this.createInvalidAccessToken();
+    }
+
+    return toSafeUser(user);
+  }
+
   private async createUser(
     input: RegisterDto,
     passwordHash: string,
@@ -270,6 +281,13 @@ export class AuthService {
     return new UnauthorizedException({
       code: 'AUTH_INVALID_CREDENTIALS',
       message: 'Email hoặc mật khẩu không hợp lệ',
+    });
+  }
+
+  private createInvalidAccessToken(): UnauthorizedException {
+    return new UnauthorizedException({
+      code: 'AUTH_ACCESS_TOKEN_INVALID',
+      message: 'Access token không hợp lệ hoặc đã hết hạn',
     });
   }
 

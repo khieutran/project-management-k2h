@@ -858,4 +858,50 @@ describe('AuthService', () => {
       ).rejects.toBe(databaseError);
     });
   });
+
+  // Nhóm test này kiểm tra current user luôn được đọc lại từ database theo userId trong access-token principal.
+  describe('getCurrentUser', () => {
+    // Test này bảo đảm service trả safe user và không đưa password hash ra ngoài.
+    it('returns the safe current user from the database', async () => {
+      const user = Object.assign(new User(), {
+        id: '11111111-1111-4111-8111-111111111111',
+        email: 'user@example.com',
+        passwordHash: 'argon2-password-hash',
+        displayName: 'Nguyen Van A',
+        role: UserRole.User,
+      });
+
+      usersService.findById.mockResolvedValue(user);
+
+      const result = await authService.getCurrentUser(user.id);
+
+      expect(usersService.findById).toHaveBeenCalledWith(user.id);
+      expect(result).toEqual({
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        role: UserRole.User,
+      });
+      expect(result).not.toHaveProperty('passwordHash');
+    });
+
+    // Test này bảo đảm access token của user đã bị xóa không thể tiếp tục đọc profile.
+    it('rejects an access token whose user no longer exists', async () => {
+      usersService.findById.mockResolvedValue(null);
+
+      try {
+        await authService.getCurrentUser(
+          '11111111-1111-4111-8111-111111111111',
+        );
+
+        throw new Error('Expected a missing current user to be rejected');
+      } catch (error) {
+        expect(error).toBeInstanceOf(UnauthorizedException);
+        expect((error as UnauthorizedException).getResponse()).toEqual({
+          code: 'AUTH_ACCESS_TOKEN_INVALID',
+          message: 'Access token không hợp lệ hoặc đã hết hạn',
+        });
+      }
+    });
+  });
 });

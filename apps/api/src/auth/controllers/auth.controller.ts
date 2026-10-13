@@ -1,19 +1,24 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
   Req,
   Res,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
+import type { SafeUser } from '../../users/types/safe-user.type';
 import { AuthService } from '../auth.service';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RefreshTokenCookieService } from '../services/refresh-token-cookie.service';
+import type { AuthenticatedRequest } from '../types/authenticated-request.type';
 import type { AuthResponse } from '../types/auth-response.type';
 
 @Controller('auth')
@@ -87,6 +92,12 @@ export class AuthController {
     } finally {
       this.cookieService.clearRefreshToken(response);
     }
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  me(@Req() request: AuthenticatedRequest): Promise<SafeUser> {
+    return this.authService.getCurrentUser(request.user.userId);
   }
 
   private createMissingRefreshToken(): UnauthorizedException {

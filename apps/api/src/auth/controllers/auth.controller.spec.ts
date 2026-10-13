@@ -6,6 +6,7 @@ import type { AuthService } from '../auth.service';
 import type { LoginDto } from '../dto/login.dto';
 import type { RegisterDto } from '../dto/register.dto';
 import type { RefreshTokenCookieService } from '../services/refresh-token-cookie.service';
+import type { AuthenticatedRequest } from '../types/authenticated-request.type';
 import { AuthController } from './auth.controller';
 
 describe('AuthController', () => {
@@ -25,6 +26,7 @@ describe('AuthController', () => {
     login: jest.Mock;
     refresh: jest.Mock;
     logout: jest.Mock;
+    getCurrentUser: jest.Mock;
   };
 
   let cookieService: {
@@ -42,6 +44,7 @@ describe('AuthController', () => {
       login: jest.fn(),
       refresh: jest.fn(),
       logout: jest.fn(),
+      getCurrentUser: jest.fn(),
     };
     cookieService = {
       getRefreshToken: jest.fn(),
@@ -263,6 +266,37 @@ describe('AuthController', () => {
       );
 
       expect(cookieService.clearRefreshToken).toHaveBeenCalledWith(response);
+    });
+  });
+
+  // Nhóm test này kiểm tra controller lấy userId từ principal do JwtAuthGuard tạo và không tin dữ liệu profile từ request body.
+  describe('me', () => {
+    // Test này bảo đảm endpoint chuyển đúng userId xuống AuthService và trả nguyên safe user.
+    it('returns the current user identified by the authenticated principal', async () => {
+      const authenticatedRequest = {
+        user: {
+          userId: '11111111-1111-4111-8111-111111111111',
+          sessionId: '22222222-2222-4222-8222-222222222222',
+          role: UserRole.User,
+        },
+      } as AuthenticatedRequest;
+
+      const safeUser = {
+        id: authenticatedRequest.user.userId,
+        email: 'user@example.com',
+        displayName: 'Nguyen Van A',
+        role: UserRole.User,
+      };
+
+      authService.getCurrentUser.mockResolvedValue(safeUser);
+
+      const result = await authController.me(authenticatedRequest);
+
+      expect(authService.getCurrentUser).toHaveBeenCalledWith(
+        authenticatedRequest.user.userId,
+      );
+      expect(result).toEqual(safeUser);
+      expect(result).not.toHaveProperty('passwordHash');
     });
   });
 });
