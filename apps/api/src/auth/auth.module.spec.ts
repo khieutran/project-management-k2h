@@ -14,6 +14,7 @@ import { TokenService } from './services/token.service';
 import { AuthService } from './auth.service';
 import { RefreshTokenCookieService } from './services/refresh-token-cookie.service';
 import { AuthController } from './controllers/auth.controller';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 describe('AuthModule', () => {
   it('imports the user and refresh-session modules', async () => {
@@ -23,6 +24,14 @@ describe('AuthModule', () => {
     expect(imports).toEqual(
       expect.arrayContaining([UsersModule, RefreshSessionsModule]),
     );
+  });
+
+  // Test này bảo đảm các module khác có thể tái sử dụng JwtAuthGuard để bảo vệ controller của chúng.
+  it('exports the JWT authentication guard', () => {
+    const exports = Reflect.getMetadata(MODULE_METADATA.EXPORTS, AuthModule) as
+      unknown[] | undefined;
+
+    expect(exports).toContain(JwtAuthGuard);
   });
 
   it('can be compiled as a Nest feature module', async () => {
@@ -68,6 +77,7 @@ describe('AuthModule', () => {
     expect(testingModule.get(PasswordService)).toBeInstanceOf(PasswordService);
     expect(testingModule.get(JwtService)).toBeInstanceOf(JwtService);
     expect(testingModule.get(TokenService)).toBeInstanceOf(TokenService);
+    expect(testingModule.get(JwtAuthGuard)).toBeInstanceOf(JwtAuthGuard);
     expect(testingModule.get(AuthService)).toBe(authService);
     expect(testingModule.get(RefreshTokenCookieService)).toBeInstanceOf(
       RefreshTokenCookieService,

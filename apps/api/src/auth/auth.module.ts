@@ -9,6 +9,7 @@ import { TokenService } from './services/token.service';
 import { AuthService } from './auth.service';
 import { RefreshTokenCookieService } from './services/refresh-token-cookie.service';
 import { AuthController } from './controllers/auth.controller';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -23,6 +24,8 @@ import { AuthController } from './controllers/auth.controller';
     PasswordService,
     RefreshTokenCookieService,
     TokenService,
+    JwtAuthGuard,
   ],
+  exports: [JwtAuthGuard],
 })
 export class AuthModule {}
