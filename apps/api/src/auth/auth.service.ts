@@ -215,6 +215,18 @@ export class AuthService {
     return transactionResult.value;
   }
 
+  async logout(refreshToken?: string): Promise<void> {
+    if (!refreshToken) {
+      return;
+    }
+
+    const tokenDigest = this.tokenService.digestRefreshToken(refreshToken);
+
+    await this.refreshSessionsService.revokeActiveSessionByTokenDigest(
+      tokenDigest,
+    );
+  }
+
   private async createUser(
     input: RegisterDto,
     passwordHash: string,

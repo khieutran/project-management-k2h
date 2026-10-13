@@ -24,6 +24,7 @@ describe('AuthController', () => {
     register: jest.Mock;
     login: jest.Mock;
     refresh: jest.Mock;
+    logout: jest.Mock;
   };
 
   let cookieService: {
@@ -40,6 +41,7 @@ describe('AuthController', () => {
       register: jest.fn(),
       login: jest.fn(),
       refresh: jest.fn(),
+      logout: jest.fn(),
     };
     cookieService = {
       getRefreshToken: jest.fn(),
@@ -217,6 +219,50 @@ describe('AuthController', () => {
 
       expect(cookieService.clearRefreshToken).toHaveBeenCalledWith(response);
       expect(cookieService.setRefreshToken).not.toHaveBeenCalled();
+    });
+  });
+
+  // Nhóm test này kiểm tra contract HTTP logout: chuyển cookie xuống service và luôn xóa cookie ở response.
+  describe('logout', () => {
+    // Test này bảo đảm refresh token hiện tại được thu hồi và cookie được xóa khi logout thành công.
+    it('revokes the current session and clears the refresh cookie', async () => {
+      cookieService.getRefreshToken.mockReturnValue('current-refresh-token');
+      authService.logout.mockResolvedValue(undefined);
+
+      await expect(
+        authController.logout(request, response),
+      ).resolves.toBeUndefined();
+
+      expect(cookieService.getRefreshToken).toHaveBeenCalledWith(request);
+      expect(authService.logout).toHaveBeenCalledWith('current-refresh-token');
+      expect(cookieService.clearRefreshToken).toHaveBeenCalledWith(response);
+    });
+
+    // Test này bảo đảm logout không có cookie vẫn là thao tác thành công và vẫn gửi lệnh xóa cookie về trình duyệt.
+    it('clears the cookie and succeeds when the refresh token is missing', async () => {
+      cookieService.getRefreshToken.mockReturnValue(undefined);
+      authService.logout.mockResolvedValue(undefined);
+
+      await expect(
+        authController.logout(request, response),
+      ).resolves.toBeUndefined();
+
+      expect(authService.logout).toHaveBeenCalledWith(undefined);
+      expect(cookieService.clearRefreshToken).toHaveBeenCalledWith(response);
+    });
+
+    // Test này bảo đảm cookie vẫn được xóa bằng khối finally ngay cả khi database thu hồi session thất bại.
+    it('clears the cookie when session revocation fails', async () => {
+      const databaseError = new Error('database unavailable');
+
+      cookieService.getRefreshToken.mockReturnValue('current-refresh-token');
+      authService.logout.mockRejectedValue(databaseError);
+
+      await expect(authController.logout(request, response)).rejects.toBe(
+        databaseError,
+      );
+
+      expect(cookieService.clearRefreshToken).toHaveBeenCalledWith(response);
     });
   });
 });

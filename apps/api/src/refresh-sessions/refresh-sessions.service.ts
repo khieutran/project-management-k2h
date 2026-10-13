@@ -105,6 +105,18 @@ export class RefreshSessionsService {
     );
   }
 
+  async revokeActiveSessionByTokenDigest(tokenDigest: string): Promise<void> {
+    await this.refreshSessionsRepository.update(
+      {
+        tokenDigest,
+        revokedAt: IsNull(),
+      },
+      {
+        revokedAt: new Date(),
+      },
+    );
+  }
+
   private getRepository(
     entityManager?: EntityManager,
   ): Repository<RefreshSession> {

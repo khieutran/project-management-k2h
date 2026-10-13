@@ -74,6 +74,21 @@ export class AuthController {
     }
   }
 
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logout(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    const refreshToken = this.cookieService.getRefreshToken(request);
+
+    try {
+      await this.authService.logout(refreshToken);
+    } finally {
+      this.cookieService.clearRefreshToken(response);
+    }
+  }
+
   private createMissingRefreshToken(): UnauthorizedException {
     return new UnauthorizedException({
       code: 'AUTH_REFRESH_TOKEN_MISSING',

@@ -282,4 +282,28 @@ describe('RefreshSessionsService', () => {
       expect(repository.update).not.toHaveBeenCalled();
     });
   });
+
+  // Nhóm test này kiểm tra thao tác logout chỉ thu hồi refresh session đang hoạt động khớp với token digest.
+  describe('revokeActiveSessionByTokenDigest', () => {
+    // Test này bảo vệ tính idempotent: session đã bị thu hồi sẽ không bị cập nhật lại vì điều kiện yêu cầu revokedAt phải null.
+    it('revokes only the active session matching the token digest', async () => {
+      const tokenDigest = 'a'.repeat(64);
+
+      repository.update.mockResolvedValue({ affected: 1 });
+
+      await refreshSessionsService.revokeActiveSessionByTokenDigest(
+        tokenDigest,
+      );
+
+      expect(repository.update).toHaveBeenCalledWith(
+        {
+          tokenDigest,
+          revokedAt: IsNull(),
+        },
+        {
+          revokedAt: now,
+        },
+      );
+    });
+  });
 });

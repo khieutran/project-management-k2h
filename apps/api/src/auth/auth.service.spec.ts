@@ -51,6 +51,7 @@ describe('AuthService', () => {
     findByTokenDigestForUpdate: jest.Mock;
     rotateActiveSession: jest.Mock;
     revokeActiveSessionsByFamilyId: jest.Mock;
+    revokeActiveSessionByTokenDigest: jest.Mock;
   };
 
   let authService: AuthService;
@@ -86,6 +87,7 @@ describe('AuthService', () => {
       findByTokenDigestForUpdate: jest.fn(),
       rotateActiveSession: jest.fn(),
       revokeActiveSessionsByFamilyId: jest.fn(),
+      revokeActiveSessionByTokenDigest: jest.fn(),
     };
 
     authService = new AuthService(
@@ -810,6 +812,50 @@ describe('AuthService', () => {
       expect(tokenService.generateRefreshToken).not.toHaveBeenCalled();
       expect(refreshSessionsService.rotateActiveSession).not.toHaveBeenCalled();
       expect(tokenService.issueAccessToken).not.toHaveBeenCalled();
+    });
+  });
+
+  // Nhóm test này kiểm tra AuthService chuyển refresh token dạng rõ thành digest trước khi yêu cầu thu hồi session.
+  describe('logout', () => {
+    // Test này bảo đảm plaintext refresh token không bị chuyển xuống tầng lưu trữ session.
+    it('digests the refresh token and revokes its active session', async () => {
+      tokenService.digestRefreshToken.mockReturnValue('a'.repeat(64));
+      refreshSessionsService.revokeActiveSessionByTokenDigest.mockResolvedValue(
+        undefined,
+      );
+
+      await authService.logout('plaintext-refresh-token');
+
+      expect(tokenService.digestRefreshToken).toHaveBeenCalledWith(
+        'plaintext-refresh-token',
+      );
+      expect(
+        refreshSessionsService.revokeActiveSessionByTokenDigest,
+      ).toHaveBeenCalledWith('a'.repeat(64));
+    });
+
+    // Test này bảo đảm logout vẫn thành công khi trình duyệt không gửi refresh cookie.
+    it('does nothing when the refresh token is missing', async () => {
+      await expect(authService.logout(undefined)).resolves.toBeUndefined();
+
+      expect(tokenService.digestRefreshToken).not.toHaveBeenCalled();
+      expect(
+        refreshSessionsService.revokeActiveSessionByTokenDigest,
+      ).not.toHaveBeenCalled();
+    });
+
+    // Test này bảo đảm lỗi database không bị AuthService nuốt mất để controller có thể xử lý đúng vòng đời cookie.
+    it('preserves a session revocation failure', async () => {
+      const databaseError = new Error('database unavailable');
+
+      tokenService.digestRefreshToken.mockReturnValue('a'.repeat(64));
+      refreshSessionsService.revokeActiveSessionByTokenDigest.mockRejectedValue(
+        databaseError,
+      );
+
+      await expect(
+        authService.logout('plaintext-refresh-token'),
+      ).rejects.toBe(databaseError);
     });
   });
 });
