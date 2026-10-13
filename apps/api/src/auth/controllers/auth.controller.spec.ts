@@ -1,5 +1,5 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 
 import { UserRole } from '../../users/enums/user-role.enum';
 import type { AuthService } from '../auth.service';
@@ -23,9 +23,15 @@ describe('AuthController', () => {
   let authService: {
     register: jest.Mock;
     login: jest.Mock;
+    refresh: jest.Mock;
   };
 
-  let cookieService: { setRefreshToken: jest.Mock };
+  let cookieService: {
+    getRefreshToken: jest.Mock;
+    setRefreshToken: jest.Mock;
+    clearRefreshToken: jest.Mock;
+  };
+  let request: Request;
   let response: Response;
   let authController: AuthController;
 
@@ -33,8 +39,14 @@ describe('AuthController', () => {
     authService = {
       register: jest.fn(),
       login: jest.fn(),
+      refresh: jest.fn(),
     };
-    cookieService = { setRefreshToken: jest.fn() };
+    cookieService = {
+      getRefreshToken: jest.fn(),
+      setRefreshToken: jest.fn(),
+      clearRefreshToken: jest.fn(),
+    };
+    request = {} as Request;
     response = {} as Response;
     authController = new AuthController(
       authService as unknown as AuthService,
@@ -132,6 +144,78 @@ describe('AuthController', () => {
       await expect(authController.login(loginInput, response)).rejects.toBe(
         error,
       );
+      expect(cookieService.setRefreshToken).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('refresh', () => {
+    it('rotates the refresh cookie and returns only safe auth data', async () => {
+      const authResponse = {
+        user: {
+          id: '11111111-1111-4111-8111-111111111111',
+          email: 'user@example.com',
+          displayName: 'Nguyen Van A',
+          role: UserRole.User,
+        },
+        accessToken: 'replacement-access-token',
+        accessTokenExpiresIn: 900,
+      };
+
+      cookieService.getRefreshToken.mockReturnValue('current-refresh-token');
+      authService.refresh.mockResolvedValue({
+        response: authResponse,
+        refreshToken: 'replacement-refresh-token',
+      });
+
+      const result = await authController.refresh(request, response);
+
+      expect(cookieService.getRefreshToken).toHaveBeenCalledWith(request);
+      expect(authService.refresh).toHaveBeenCalledWith('current-refresh-token');
+      expect(cookieService.setRefreshToken).toHaveBeenCalledWith(
+        response,
+        'replacement-refresh-token',
+      );
+      expect(cookieService.clearRefreshToken).not.toHaveBeenCalled();
+      expect(result).toEqual(authResponse);
+      expect(result).not.toHaveProperty('refreshToken');
+      expect(result.user).not.toHaveProperty('passwordHash');
+    });
+
+    it('rejects a missing refresh cookie and clears it', async () => {
+      cookieService.getRefreshToken.mockReturnValue(undefined);
+
+      let caughtError: unknown;
+
+      try {
+        await authController.refresh(request, response);
+      } catch (error) {
+        caughtError = error;
+      }
+
+      expect(caughtError).toBeInstanceOf(UnauthorizedException);
+      expect((caughtError as UnauthorizedException).getResponse()).toEqual({
+        code: 'AUTH_REFRESH_TOKEN_MISSING',
+        message: 'Không tìm thấy refresh token',
+      });
+      expect(cookieService.clearRefreshToken).toHaveBeenCalledWith(response);
+      expect(authService.refresh).not.toHaveBeenCalled();
+      expect(cookieService.setRefreshToken).not.toHaveBeenCalled();
+    });
+
+    it('clears the refresh cookie and preserves an auth failure', async () => {
+      const error = new UnauthorizedException({
+        code: 'AUTH_REFRESH_TOKEN_REUSED',
+        message: 'Phát hiện refresh token đã được sử dụng lại',
+      });
+
+      cookieService.getRefreshToken.mockReturnValue('reused-refresh-token');
+      authService.refresh.mockRejectedValue(error);
+
+      await expect(authController.refresh(request, response)).rejects.toBe(
+        error,
+      );
+
+      expect(cookieService.clearRefreshToken).toHaveBeenCalledWith(response);
       expect(cookieService.setRefreshToken).not.toHaveBeenCalled();
     });
   });

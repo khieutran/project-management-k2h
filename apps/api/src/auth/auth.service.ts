@@ -15,6 +15,15 @@ import { PasswordService } from './services/password.service';
 import { TokenService } from './services/token.service';
 import type { AuthSessionResult } from './types/auth-session-result.type';
 
+type RefreshTransactionResult =
+  | {
+      status: 'success';
+      value: AuthSessionResult;
+    }
+  | {
+      status: 'reused';
+    };
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -76,7 +85,7 @@ export class AuthService {
       throw this.createInvalidCredentials();
     }
 
-    //Verify 2 password thong qua passwordService 
+    //Verify 2 password thong qua passwordService
     const passwordMatches = await this.passwordService.verify(
       user.passwordHash,
       input.password,
@@ -122,61 +131,88 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string): Promise<AuthSessionResult> {
-    const currentTokenDigest = this.tokenService.digestRefreshToken(refreshToken);
+    const currentTokenDigest =
+      this.tokenService.digestRefreshToken(refreshToken);
 
-    return this.dataSource.transaction(async (entityManager) => {
-      const currentSession = 
-      await this.refreshSessionsService.findByTokenDigestForUpdate(
-        currentTokenDigest,
-        entityManager,
-      );
+    const transactionResult =
+      await this.dataSource.transaction<RefreshTransactionResult>(
+        async (entityManager) => {
+          const currentSession =
+            await this.refreshSessionsService.findByTokenDigestForUpdate(
+              currentTokenDigest,
+              entityManager,
+            );
 
-      if(!currentSession) {
-        throw this.createInvalidRefreshToken();
-      }
+          if (!currentSession) {
+            throw this.createInvalidRefreshToken();
+          }
 
-      if(currentSession.revokedAt) {
-        throw this.createRevokedRefreshToken();
-      }
+          if (currentSession.revokedAt) {
+            if (currentSession.replacedBySessionId) {
+              await this.refreshSessionsService.revokeActiveSessionsByFamilyId(
+                currentSession.familyId,
+                entityManager,
+              );
 
-      if(currentSession.expiresAt.getTime() <= Date.now()) {
-        throw this.createExpiredRefreshToken()
-      }
+              return { status: 'reused' };
+            }
 
-      const user = await this.usersService.findById(
-        currentSession.userId,
-        entityManager,
-      );
+            throw this.createRevokedRefreshToken();
+          }
 
-      if(!user) {
-        throw this.createInvalidRefreshToken();
-      }
+          if (currentSession.expiresAt.getTime() <= Date.now()) {
+            throw this.createExpiredRefreshToken();
+          }
 
-      const replacementRefreshToken = this.tokenService.generateRefreshToken();
+          const user = await this.usersService.findById(
+            currentSession.userId,
+            entityManager,
+          );
 
-      const replacementTokenDigest = this.tokenService.digestRefreshToken(replacementRefreshToken);
+          if (!user) {
+            throw this.createInvalidRefreshToken();
+          }
 
-      const replacementSession = await this.refreshSessionsService.rotateActiveSession(
-        currentSession,
-        replacementTokenDigest,
-        entityManager,
-      );
+          const replacementRefreshToken =
+            this.tokenService.generateRefreshToken();
 
-      const accessToken = await this.tokenService.issueAccessToken({
-        userId: user.id,
-        sessionId: replacementSession.id,
-        role: user.role,
-      });
+          const replacementTokenDigest = this.tokenService.digestRefreshToken(
+            replacementRefreshToken,
+          );
 
-      return {
-        response: {
-          user: toSafeUser(user),
-          accessToken,
-          accessTokenExpiresIn: this.tokenService.getAccessTokenExpiresInSeconds(),
+          const replacementSession =
+            await this.refreshSessionsService.rotateActiveSession(
+              currentSession,
+              replacementTokenDigest,
+              entityManager,
+            );
+
+          const accessToken = await this.tokenService.issueAccessToken({
+            userId: user.id,
+            sessionId: replacementSession.id,
+            role: user.role,
+          });
+
+          return {
+            status: 'success',
+            value: {
+              response: {
+                user: toSafeUser(user),
+                accessToken,
+                accessTokenExpiresIn:
+                  this.tokenService.getAccessTokenExpiresInSeconds(),
+              },
+              refreshToken: replacementRefreshToken,
+            },
+          };
         },
-        refreshToken: replacementRefreshToken,
-      };
-    });
+      );
+
+    if (transactionResult.status === 'reused') {
+      throw this.createReusedRefreshToken();
+    }
+
+    return transactionResult.value;
   }
 
   private async createUser(
@@ -226,11 +262,11 @@ export class AuthService {
   }
 
   private createInvalidRefreshToken(): UnauthorizedException {
-    return new UnauthorizedException ({
+    return new UnauthorizedException({
       code: 'AUTH_REFRESH_TOKEN_INVALID',
       message: 'Refresh token không hợp lệ',
     });
-  };
+  }
 
   private createExpiredRefreshToken(): UnauthorizedException {
     return new UnauthorizedException({
@@ -240,9 +276,16 @@ export class AuthService {
   }
 
   private createRevokedRefreshToken(): UnauthorizedException {
-    return new UnauthorizedException ({
+    return new UnauthorizedException({
       code: 'AUTH_REFRESH_TOKEN_REVOKED',
       message: 'Refresh token đã bị thu hồi',
+    });
+  }
+
+  private createReusedRefreshToken(): UnauthorizedException {
+    return new UnauthorizedException({
+      code: 'AUTH_REFRESH_TOKEN_REUSED',
+      message: 'Phát hiện refresh token đã được sử dụng lại',
     });
   }
 }
