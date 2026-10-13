@@ -1,5 +1,5 @@
-import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
@@ -16,8 +16,16 @@ describe('Login endpoint (e2e)', () => {
   const email = 'login-e2e@example.com';
   const password = 'login-password-123';
 
-  let app: INestApplication;
+  let app: NestExpressApplication;
   let dataSource: DataSource;
+  let testClientIp: string;
+  let testClientSequence = 0;
+
+  function postAsCurrentTestClient(path: string) {
+    return request(app.getHttpServer())
+      .post(path)
+      .set('X-Forwarded-For', testClientIp);
+  }
 
   async function removeTestUser(): Promise<void> {
     await dataSource.getRepository(User).delete({ email });
@@ -28,7 +36,8 @@ describe('Login endpoint (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = testingModule.createNestApplication();
+    app = testingModule.createNestApplication<NestExpressApplication>();
+    app.set('trust proxy', 1);
     app.useGlobalPipes(createApplicationValidationPipe());
 
     const configService = app.get(ConfigService<EnvironmentVariables, true>);
@@ -43,10 +52,12 @@ describe('Login endpoint (e2e)', () => {
   });
 
   beforeEach(async () => {
+    testClientSequence += 1;
+    testClientIp = `198.51.100.${testClientSequence}`;
+
     await removeTestUser();
 
-    await request(app.getHttpServer())
-      .post('/api/auth/register')
+    await postAsCurrentTestClient('/api/auth/register')
       .send({
         email,
         password,
@@ -77,8 +88,7 @@ describe('Login endpoint (e2e)', () => {
     expect(sessionsBeforeLogin).toHaveLength(1);
 
     // Act
-    const response = await request(app.getHttpServer())
-      .post('/api/auth/login')
+    const response = await postAsCurrentTestClient('/api/auth/login')
       .send({ email, password })
       .expect(200);
 
@@ -129,8 +139,7 @@ describe('Login endpoint (e2e)', () => {
   it('normalizes email before authentication', async () => {
     const unnormalizedEmail = '  LOGIN-E2E@EXAMPLE.COM  ';
 
-    const response = await request(app.getHttpServer())
-      .post('/api/auth/login')
+    const response = await postAsCurrentTestClient('/api/auth/login')
       .send({
         email: unnormalizedEmail,
         password,
@@ -166,8 +175,7 @@ describe('Login endpoint (e2e)', () => {
 
       expect(sessionCountBefore).toBe(1);
 
-      const response = await request(app.getHttpServer())
-        .post('/api/auth/login')
+      const response = await postAsCurrentTestClient('/api/auth/login')
         .send({
           email: loginEmail,
           password: loginPassword,
@@ -198,8 +206,7 @@ describe('Login endpoint (e2e)', () => {
       .getRepository(RefreshSession)
       .countBy({ userId: user.id });
 
-    const response = await request(app.getHttpServer())
-      .post('/api/auth/login')
+    const response = await postAsCurrentTestClient('/api/auth/login')
       .send({
         email,
         password,
@@ -221,8 +228,7 @@ describe('Login endpoint (e2e)', () => {
 
     await removeTestUser();
 
-    await request(app.getHttpServer())
-      .post('/api/auth/register')
+    await postAsCurrentTestClient('/api/auth/register')
       .send({
         email,
         password: passwordWithWhitespace,
@@ -230,8 +236,7 @@ describe('Login endpoint (e2e)', () => {
       })
       .expect(201);
 
-    const successResponse = await request(app.getHttpServer())
-      .post('/api/auth/login')
+    const successResponse = await postAsCurrentTestClient('/api/auth/login')
       .send({
         email,
         password: passwordWithWhitespace,
@@ -242,8 +247,7 @@ describe('Login endpoint (e2e)', () => {
     expect(successResponse.body.user).not.toHaveProperty('password');
     expect(successResponse.body.user).not.toHaveProperty('passwordHash');
 
-    const failureResponse = await request(app.getHttpServer())
-      .post('/api/auth/login')
+    const failureResponse = await postAsCurrentTestClient('/api/auth/login')
       .send({
         email,
         password: passwordWithWhitespace.trim(),

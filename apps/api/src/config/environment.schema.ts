@@ -28,6 +28,43 @@ export const environmentSchema = z
 
     AUTH_COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']),
 
+    AUTH_REGISTER_RATE_LIMIT: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10_000)
+      .default(3),
+    AUTH_REGISTER_RATE_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(86_400)
+      .default(3600),
+    AUTH_LOGIN_RATE_LIMIT: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10_000)
+      .default(5),
+    AUTH_LOGIN_RATE_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(86_400)
+      .default(60),
+    AUTH_REFRESH_RATE_LIMIT: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10_000)
+      .default(20),
+    AUTH_REFRESH_RATE_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(86_400)
+      .default(60),
+
     POSTGRES_HOST: z.string().min(1),
 
     POSTGRES_PORT: z.coerce.number().int().min(1).max(65535),

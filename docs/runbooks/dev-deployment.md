@@ -58,6 +58,12 @@ Tạo các Environment Variables sau:
 | `POSTGRES_DB` | `project_management` |
 | `POSTGRES_USER` | `project_management` |
 | `SWAGGER_ENABLED` | `true` |
+| `AUTH_REGISTER_RATE_LIMIT` | `3` |
+| `AUTH_REGISTER_RATE_TTL_SECONDS` | `3600` |
+| `AUTH_LOGIN_RATE_LIMIT` | `5` |
+| `AUTH_LOGIN_RATE_TTL_SECONDS` | `60` |
+| `AUTH_REFRESH_RATE_LIMIT` | `20` |
+| `AUTH_REFRESH_RATE_TTL_SECONDS` | `60` |
 
 Đây là cấu hình không nhạy cảm nên được lưu dưới dạng Environment Variables, không phải secrets.
 

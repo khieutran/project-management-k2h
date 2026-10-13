@@ -135,6 +135,12 @@ const requiredAuthTestEnvironment = [
   'REFRESH_TOKEN_TTL_SECONDS: "604800"',
   'AUTH_COOKIE_SECURE: "false"',
   'AUTH_COOKIE_SAME_SITE: lax',
+  'AUTH_REGISTER_RATE_LIMIT: "3"',
+  'AUTH_REGISTER_RATE_TTL_SECONDS: "3600"',
+  'AUTH_LOGIN_RATE_LIMIT: "5"',
+  'AUTH_LOGIN_RATE_TTL_SECONDS: "60"',
+  'AUTH_REFRESH_RATE_LIMIT: "20"',
+  'AUTH_REFRESH_RATE_TTL_SECONDS: "60"',
 ]
 
 for (const expectedEnvironment of requiredAuthTestEnvironment) {

@@ -10,6 +10,12 @@ const validEnvironment = {
   REFRESH_TOKEN_TTL_SECONDS: '604800',
   AUTH_COOKIE_SECURE: 'false',
   AUTH_COOKIE_SAME_SITE: 'lax',
+  AUTH_REGISTER_RATE_LIMIT: '3',
+  AUTH_REGISTER_RATE_TTL_SECONDS: '3600',
+  AUTH_LOGIN_RATE_LIMIT: '5',
+  AUTH_LOGIN_RATE_TTL_SECONDS: '60',
+  AUTH_REFRESH_RATE_LIMIT: '20',
+  AUTH_REFRESH_RATE_TTL_SECONDS: '60',
   POSTGRES_HOST: '127.0.0.1',
   POSTGRES_PORT: '5433',
   POSTGRES_DB: 'project_management',
@@ -29,6 +35,12 @@ describe('validateEnvironment', () => {
       REFRESH_TOKEN_TTL_SECONDS: 604800,
       AUTH_COOKIE_SECURE: false,
       AUTH_COOKIE_SAME_SITE: 'lax',
+      AUTH_REGISTER_RATE_LIMIT: 3,
+      AUTH_REGISTER_RATE_TTL_SECONDS: 3600,
+      AUTH_LOGIN_RATE_LIMIT: 5,
+      AUTH_LOGIN_RATE_TTL_SECONDS: 60,
+      AUTH_REFRESH_RATE_LIMIT: 20,
+      AUTH_REFRESH_RATE_TTL_SECONDS: 60,
       POSTGRES_HOST: '127.0.0.1',
       POSTGRES_PORT: 5433,
       POSTGRES_DB: 'project_management',
@@ -150,5 +162,22 @@ describe('validateEnvironment', () => {
         AUTH_COOKIE_SAME_SITE: 'none',
       }),
     ).toThrow('Invalid environment variables: AUTH_COOKIE_SAME_SITE');
+  });
+
+  // Test này bảo đảm giới hạn request và cửa sổ thời gian phải là số nguyên dương hợp lệ.
+  it.each([
+    ['AUTH_REGISTER_RATE_LIMIT', '0'],
+    ['AUTH_REGISTER_RATE_TTL_SECONDS', '0'],
+    ['AUTH_LOGIN_RATE_LIMIT', '1.5'],
+    ['AUTH_LOGIN_RATE_TTL_SECONDS', '86401'],
+    ['AUTH_REFRESH_RATE_LIMIT', 'abc'],
+    ['AUTH_REFRESH_RATE_TTL_SECONDS', '-1'],
+  ])('rejects invalid auth rate-limit setting %s=%s', (key, value) => {
+    expect(() =>
+      validateEnvironment({
+        ...validEnvironment,
+        [key]: value,
+      }),
+    ).toThrow(`Invalid environment variables: ${key}`);
   });
 });

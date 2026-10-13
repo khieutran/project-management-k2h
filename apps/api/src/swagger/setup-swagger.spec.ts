@@ -42,6 +42,20 @@ describe('setupSwagger', () => {
           title: 'Project Management K2H API',
           version: '0.1.0',
         }),
+        components: expect.objectContaining({
+          securitySchemes: expect.objectContaining({
+            'access-token': expect.objectContaining({
+              type: 'http',
+              scheme: 'bearer',
+              bearerFormat: 'JWT',
+            }),
+            'refresh-token': expect.objectContaining({
+              type: 'apiKey',
+              in: 'cookie',
+              name: 'refresh_token',
+            }),
+          }),
+        }),
       }),
     );
 

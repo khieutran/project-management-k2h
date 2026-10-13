@@ -254,6 +254,30 @@ const requiredDevAuthEnvironment = [
   [
     'AUTH_COOKIE_SAME_SITE',
     '${{ vars.AUTH_COOKIE_SAME_SITE }}',
+  ],
+  [
+    'AUTH_REGISTER_RATE_LIMIT',
+    '${{ vars.AUTH_REGISTER_RATE_LIMIT }}',
+  ],
+  [
+    'AUTH_REGISTER_RATE_TTL_SECONDS',
+    '${{ vars.AUTH_REGISTER_RATE_TTL_SECONDS }}',
+  ],
+  [
+    'AUTH_LOGIN_RATE_LIMIT',
+    '${{ vars.AUTH_LOGIN_RATE_LIMIT }}',
+  ],
+  [
+    'AUTH_LOGIN_RATE_TTL_SECONDS',
+    '${{ vars.AUTH_LOGIN_RATE_TTL_SECONDS }}',
+  ],
+  [
+    'AUTH_REFRESH_RATE_LIMIT',
+    '${{ vars.AUTH_REFRESH_RATE_LIMIT }}',
+  ],
+  [
+    'AUTH_REFRESH_RATE_TTL_SECONDS',
+    '${{ vars.AUTH_REFRESH_RATE_TTL_SECONDS }}',
   ]
 ]
 

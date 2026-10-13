@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 import { RefreshSession } from '../refresh-sessions/entities/refresh-session.entity';
 import { AuthModule } from './auth.module';
@@ -70,7 +71,14 @@ describe('AuthModule', () => {
     };
 
     const testingModule = await Test.createTestingModule({
-      imports: [AuthModule],
+      imports: [
+        ThrottlerModule.forRoot([
+          { name: 'register', limit: 3, ttl: 3_600_000 },
+          { name: 'login', limit: 5, ttl: 60_000 },
+          { name: 'refresh', limit: 20, ttl: 60_000 },
+        ]),
+        AuthModule,
+      ],
     })
       .overrideProvider(getRepositoryToken(User))
       .useValue(userRepository)

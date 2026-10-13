@@ -514,6 +514,13 @@ export REFRESH_TOKEN_TTL_SECONDS='604800'
 export AUTH_COOKIE_SECURE='true'
 export AUTH_COOKIE_SAME_SITE='lax'
 
+export AUTH_REGISTER_RATE_LIMIT='3'
+export AUTH_REGISTER_RATE_TTL_SECONDS='3600'
+export AUTH_LOGIN_RATE_LIMIT='5'
+export AUTH_LOGIN_RATE_TTL_SECONDS='60'
+export AUTH_REFRESH_RATE_LIMIT='20'
+export AUTH_REFRESH_RATE_TTL_SECONDS='60'
+
 run_deploy_failure_case() {
   local case_name="$1"
   local docker_fail_on="$2"
@@ -786,6 +793,36 @@ assert_file_contains \
   'successful deployment writes cookie SameSite policy' \
   "$DEPLOY_CASE_PATH/.env" \
   "AUTH_COOKIE_SAME_SITE=$AUTH_COOKIE_SAME_SITE"
+
+assert_file_contains \
+  'successful deployment writes register rate limit' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "AUTH_REGISTER_RATE_LIMIT=$AUTH_REGISTER_RATE_LIMIT"
+
+assert_file_contains \
+  'successful deployment writes register rate-limit TTL' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "AUTH_REGISTER_RATE_TTL_SECONDS=$AUTH_REGISTER_RATE_TTL_SECONDS"
+
+assert_file_contains \
+  'successful deployment writes login rate limit' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "AUTH_LOGIN_RATE_LIMIT=$AUTH_LOGIN_RATE_LIMIT"
+
+assert_file_contains \
+  'successful deployment writes login rate-limit TTL' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "AUTH_LOGIN_RATE_TTL_SECONDS=$AUTH_LOGIN_RATE_TTL_SECONDS"
+
+assert_file_contains \
+  'successful deployment writes refresh rate limit' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "AUTH_REFRESH_RATE_LIMIT=$AUTH_REFRESH_RATE_LIMIT"
+
+assert_file_contains \
+  'successful deployment writes refresh rate-limit TTL' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "AUTH_REFRESH_RATE_TTL_SECONDS=$AUTH_REFRESH_RATE_TTL_SECONDS"
 
 assert_file_not_contains \
   'successful deployment does not log JWT access secret' \

@@ -1,5 +1,5 @@
-import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
@@ -16,8 +16,16 @@ describe('Register endpoint (e2e)', () => {
   const email = 'register-e2e@example.com';
   const password = 'register-password-123';
 
-  let app: INestApplication;
+  let app: NestExpressApplication;
   let dataSource: DataSource;
+  let testClientIp: string;
+  let testClientSequence = 0;
+
+  function postAsCurrentTestClient(path: string) {
+    return request(app.getHttpServer())
+      .post(path)
+      .set('X-Forwarded-For', testClientIp);
+  }
 
   async function removeTestUser(): Promise<void> {
     await dataSource.getRepository(User).delete({ email });
@@ -28,7 +36,8 @@ describe('Register endpoint (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = testingModule.createNestApplication();
+    app = testingModule.createNestApplication<NestExpressApplication>();
+    app.set('trust proxy', 1);
 
     app.useGlobalPipes(createApplicationValidationPipe());
 
@@ -45,6 +54,9 @@ describe('Register endpoint (e2e)', () => {
   });
 
   beforeEach(async () => {
+    testClientSequence += 1;
+    testClientIp = `198.51.100.${testClientSequence}`;
+
     await removeTestUser();
   });
 
@@ -58,8 +70,7 @@ describe('Register endpoint (e2e)', () => {
   });
 
   it('registers a user, creates a session, sets a cookie and returns safe auth data', async () => {
-    const response = await request(app.getHttpServer())
-      .post('/api/auth/register')
+    const response = await postAsCurrentTestClient('/api/auth/register')
       .send({
         email: '  REGISTER-E2E@EXAMPLE.COM  ',
         password,
@@ -112,8 +123,7 @@ describe('Register endpoint (e2e)', () => {
   });
 
   it('rejects fields outside the RegisterDto contract', async () => {
-    await request(app.getHttpServer())
-      .post('/api/auth/register')
+    await postAsCurrentTestClient('/api/auth/register')
       .send({
         email,
         password,
@@ -134,13 +144,11 @@ describe('Register endpoint (e2e)', () => {
       displayName: 'Register E2E User',
     };
 
-    await request(app.getHttpServer())
-      .post('/api/auth/register')
+    await postAsCurrentTestClient('/api/auth/register')
       .send(input)
       .expect(201);
 
-    const response = await request(app.getHttpServer())
-      .post('/api/auth/register')
+    const response = await postAsCurrentTestClient('/api/auth/register')
       .send(input)
       .expect(409);
 
