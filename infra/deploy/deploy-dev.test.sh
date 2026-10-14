@@ -172,6 +172,84 @@ expect_failure \
   validate_postgres_password \
   $'Correct-Horse_Battery9%Staple\n'
 
+expect_success \
+  'accepts a strong env-file-safe Auth secret' \
+  validate_auth_secret \
+  JWT_ACCESS_SECRET \
+  'Correct-JWT_Secret9%AtLeast32Characters'
+
+expect_failure 'rejects a short Auth secret' \
+  validate_auth_secret JWT_ACCESS_SECRET \
+  'too-short'
+
+expect_failure 'rejects whitespace in Auth secret' \
+  validate_auth_secret JWT_ACCESS_SECRET \
+  'Correct JWT_Secret9%AtLeast32Characters'
+
+expect_failure 'rejects newline in Auth secret' \
+  validate_auth_secret JWT_ACCESS_SECRET \
+  $'Correct-JWT_Secret9%AtLeast32Characters\nINJECTED=true'
+
+expect_success 'accepts a valid JWT access TTL' \
+  validate_integer_in_range JWT_ACCESS_TTL_SECONDS \
+  '900' 60 3600
+
+expect_failure 'rejects a JWT access TTL below minimum' \
+  validate_integer_in_range JWT_ACCESS_TTL_SECONDS \
+  '59' 60 3600
+
+expect_failure 'rejects a JWT access TTL above maximum' \
+  validate_integer_in_range JWT_ACCESS_TTL_SECONDS \
+  '3601' 60 3600
+
+expect_failure 'rejects a fractional JWT access TTL' \
+  validate_integer_in_range JWT_ACCESS_TTL_SECONDS \
+  '900.5' 60 3600
+
+expect_success 'accepts a valid refresh-token TTL' \
+  validate_integer_in_range REFRESH_TOKEN_TTL_SECONDS \
+  '604800' 3600 2592000
+
+expect_failure 'rejects a refresh-token TTL below minimum' \
+  validate_integer_in_range REFRESH_TOKEN_TTL_SECONDS \
+  '2592001' 3600 2592000
+
+expect_success \
+  'accepts local lax cookie policy' \
+  validate_cookie_policy \
+  'false' \
+  'lax'
+
+expect_success \
+  'accepts DEV secure lax cookie policy' \
+  validate_cookie_policy \
+  'true' \
+  'lax'
+
+expect_success \
+  'accepts secure SameSite none policy' \
+  validate_cookie_policy \
+  'true' \
+  'none'
+
+expect_failure \
+  'rejects insecure SameSite none policy' \
+  validate_cookie_policy \
+  'false' \
+  'none'
+
+expect_failure \
+  'rejects an invalid cookie secure value' \
+  validate_cookie_policy \
+  'yes' \
+  'lax'
+
+expect_failure \
+  'rejects an invalid cookie SameSite value' \
+  validate_cookie_policy \
+  'true' \
+  'random'
+
 assert_file_contains() {
   local description="$1"
   local file_path="$2"
@@ -427,6 +505,22 @@ chmod +x "$FAKE_CURL"
 CURRENT_SHA='1111111111111111111111111111111111111111'
 CANDIDATE_TAG='sha-2222222222222222222222222222222222222222'
 
+export JWT_ACCESS_SECRET='test-jwt-secret-minimum-32-characters'
+export JWT_ACCESS_TTL_SECONDS='900'
+
+export REFRESH_TOKEN_PEPPER='test-refresh-pepper-minimum-32-characters'
+export REFRESH_TOKEN_TTL_SECONDS='604800'
+
+export AUTH_COOKIE_SECURE='true'
+export AUTH_COOKIE_SAME_SITE='lax'
+
+export AUTH_REGISTER_RATE_LIMIT='3'
+export AUTH_REGISTER_RATE_TTL_SECONDS='3600'
+export AUTH_LOGIN_RATE_LIMIT='5'
+export AUTH_LOGIN_RATE_TTL_SECONDS='60'
+export AUTH_REFRESH_RATE_LIMIT='20'
+export AUTH_REFRESH_RATE_TTL_SECONDS='60'
+
 run_deploy_failure_case() {
   local case_name="$1"
   local docker_fail_on="$2"
@@ -669,6 +763,76 @@ assert_file_contains \
   'successful deployment promotes candidate environment' \
   "$DEPLOY_CASE_PATH/.env" \
   "IMAGE_TAG=$CANDIDATE_TAG"
+
+assert_file_contains \
+  'successful deployment writes JWT access secret' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "JWT_ACCESS_SECRET=$JWT_ACCESS_SECRET"
+
+assert_file_contains \
+  'successful deployment writes JWT access TTL' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "JWT_ACCESS_TTL_SECONDS=$JWT_ACCESS_TTL_SECONDS"
+
+assert_file_contains \
+  'successful deployment writes refresh-token pepper' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "REFRESH_TOKEN_PEPPER=$REFRESH_TOKEN_PEPPER"
+
+assert_file_contains \
+  'successful deployment writes refresh-token TTL' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "REFRESH_TOKEN_TTL_SECONDS=$REFRESH_TOKEN_TTL_SECONDS"
+
+assert_file_contains \
+  'successful deployment writes cookie secure policy' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "AUTH_COOKIE_SECURE=$AUTH_COOKIE_SECURE"
+
+assert_file_contains \
+  'successful deployment writes cookie SameSite policy' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "AUTH_COOKIE_SAME_SITE=$AUTH_COOKIE_SAME_SITE"
+
+assert_file_contains \
+  'successful deployment writes register rate limit' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "AUTH_REGISTER_RATE_LIMIT=$AUTH_REGISTER_RATE_LIMIT"
+
+assert_file_contains \
+  'successful deployment writes register rate-limit TTL' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "AUTH_REGISTER_RATE_TTL_SECONDS=$AUTH_REGISTER_RATE_TTL_SECONDS"
+
+assert_file_contains \
+  'successful deployment writes login rate limit' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "AUTH_LOGIN_RATE_LIMIT=$AUTH_LOGIN_RATE_LIMIT"
+
+assert_file_contains \
+  'successful deployment writes login rate-limit TTL' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "AUTH_LOGIN_RATE_TTL_SECONDS=$AUTH_LOGIN_RATE_TTL_SECONDS"
+
+assert_file_contains \
+  'successful deployment writes refresh rate limit' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "AUTH_REFRESH_RATE_LIMIT=$AUTH_REFRESH_RATE_LIMIT"
+
+assert_file_contains \
+  'successful deployment writes refresh rate-limit TTL' \
+  "$DEPLOY_CASE_PATH/.env" \
+  "AUTH_REFRESH_RATE_TTL_SECONDS=$AUTH_REFRESH_RATE_TTL_SECONDS"
+
+assert_file_not_contains \
+  'successful deployment does not log JWT access secret' \
+  "$CASE_OUTPUT" \
+  "$JWT_ACCESS_SECRET"
+
+assert_file_not_contains \
+  'successful deployment does not log refresh-token pepper' \
+  "$CASE_OUTPUT" \
+  "$REFRESH_TOKEN_PEPPER"
 
 assert_file_contains \
   'successful deployment snapshots previous environment' \

@@ -34,6 +34,21 @@ jobs:
       API_PORT: 3000
       SWAGGER_ENABLED: "false"
 
+      JWT_ACCESS_SECRET: ci-test-jwt-secret-minimum-32-characters
+      JWT_ACCESS_TTL_SECONDS: "900"
+
+      REFRESH_TOKEN_PEPPER: ci-test-refresh-pepper-minimum-32-characters
+      REFRESH_TOKEN_TTL_SECONDS: "604800"
+
+      AUTH_COOKIE_SECURE: "false"
+      AUTH_COOKIE_SAME_SITE: lax
+      AUTH_REGISTER_RATE_LIMIT: "3"
+      AUTH_REGISTER_RATE_TTL_SECONDS: "3600"
+      AUTH_LOGIN_RATE_LIMIT: "5"
+      AUTH_LOGIN_RATE_TTL_SECONDS: "60"
+      AUTH_REFRESH_RATE_LIMIT: "20"
+      AUTH_REFRESH_RATE_TTL_SECONDS: "60"
+
       POSTGRES_HOST: 127.0.0.1
       POSTGRES_PORT: 5432
       POSTGRES_HOST_PORT: 5432
@@ -90,6 +105,9 @@ jobs:
 
       - name: Run unit tests
         run: pnpm test
+
+      - name: Apply database migrations
+        run: pnpm db:migration:run
 
       - name: Run API E2E tests
         run: pnpm test:e2e

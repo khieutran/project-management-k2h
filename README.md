@@ -19,7 +19,7 @@ Hệ thống quản lý dự án của nhóm K2H, được tổ chức theo mô 
 | Runtime | Node.js 24 |
 | Package manager | pnpm 12 |
 | Backend | NestJS 12 |
-| Frontend | React 19, Vite 8 |
+| Frontend | React 19, React Router 7, Vite 8 |
 | Cơ sở dữ liệu | PostgreSQL 17 |
 | ORM | TypeORM |
 | Kiểm thử API | Jest, Supertest |
@@ -108,6 +108,20 @@ NODE_ENV=development
 API_PORT=3000
 SWAGGER_ENABLED=true
 
+JWT_ACCESS_SECRET=change-me-local-jwt-secret-minimum-32-characters
+JWT_ACCESS_TTL_SECONDS=900
+REFRESH_TOKEN_PEPPER=change-me-local-refresh-pepper-minimum-32-characters
+REFRESH_TOKEN_TTL_SECONDS=604800
+AUTH_COOKIE_SECURE=false
+AUTH_COOKIE_SAME_SITE=lax
+
+AUTH_REGISTER_RATE_LIMIT=3
+AUTH_REGISTER_RATE_TTL_SECONDS=3600
+AUTH_LOGIN_RATE_LIMIT=5
+AUTH_LOGIN_RATE_TTL_SECONDS=60
+AUTH_REFRESH_RATE_LIMIT=20
+AUTH_REFRESH_RATE_TTL_SECONDS=60
+
 POSTGRES_HOST=127.0.0.1
 POSTGRES_PORT=5432
 POSTGRES_HOST_PORT=5432
@@ -162,6 +176,8 @@ Các địa chỉ mặc định:
 | Web | `http://localhost:5173` |
 | API health | `http://localhost:3000/api/health` |
 | Swagger | `http://localhost:3000/api/docs` |
+| Đăng ký | `http://localhost:5173/register` |
+| Đăng nhập | `http://localhost:5173/login` |
 
 Vite tự chuyển tiếp các request bắt đầu bằng `/api` sang API tại `127.0.0.1:3000`.
 
@@ -180,6 +196,42 @@ Kết quả thành công có dạng:
   "environment": "development"
 }
 ```
+
+## Authentication local
+
+Luồng xác thực hiện có:
+
+```text
+Đăng ký hoặc đăng nhập
+    ↓
+Access token chỉ được giữ trong memory của Web
+    ↓
+Refresh token nằm trong HttpOnly cookie
+    ↓
+Reload trang → Web gọi refresh → khôi phục phiên
+    ↓
+Đăng xuất → revoke session, clear cookie và clear auth state
+```
+
+Các route Web:
+
+| Route | Quyền truy cập | Chức năng |
+| --- | --- | --- |
+| `/register` | Guest | Tạo tài khoản mới |
+| `/login` | Guest | Đăng nhập |
+| `/` | Authenticated | Home xác nhận phiên và hiển thị safe user |
+
+Kiểm tra thủ công:
+
+1. Mở `http://localhost:5173/register` và tạo tài khoản.
+2. Xác nhận ứng dụng chuyển về Home và chỉ hiển thị tên, email, role.
+3. Reload trang và xác nhận phiên được khôi phục.
+4. Đăng xuất và xác nhận ứng dụng chuyển về Login.
+5. Đăng nhập lại bằng tài khoản vừa tạo.
+
+Request `POST /api/auth/refresh` trả `401` trước khi người dùng đăng nhập là hành vi bình thường. Không lưu access token hoặc refresh token vào `localStorage`, `sessionStorage`, log, issue hoặc ảnh chụp màn hình.
+
+Xem contract, xử lý sự cố và smoke test tại [runbook authentication](docs/runbooks/authentication.md).
 
 ## Quản lý PostgreSQL local
 
@@ -439,9 +491,12 @@ Foundation hiện đã cung cấp:
 - CI kiểm tra nền móng ứng dụng.
 - CD tự động publish immutable images lên GHCR và triển khai DEV.
 - Deploy engine hỗ trợ migration, health check, promotion và rollback application.
+- Đăng ký, đăng nhập, refresh rotation, đăng xuất và endpoint current user.
+- JWT authentication, role guard, rate limiting và error contract an toàn.
+- React AuthProvider, protected routes và giao diện Login/Register/Home.
 
 Các phần chưa thuộc phạm vi hiện tại:
 
-- Chức năng quản lý người dùng, dự án, công việc và phân quyền.
+- Trang quản trị người dùng và các chức năng quản lý dự án, công việc.
 - Hạ tầng production, backup và disaster recovery.
 - Monitoring, logging tập trung và cảnh báo production.

@@ -1,0 +1,302 @@
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import type { Request, Response } from 'express';
+
+import { UserRole } from '../../users/enums/user-role.enum';
+import type { AuthService } from '../auth.service';
+import type { LoginDto } from '../dto/login.dto';
+import type { RegisterDto } from '../dto/register.dto';
+import type { RefreshTokenCookieService } from '../services/refresh-token-cookie.service';
+import type { AuthenticatedRequest } from '../types/authenticated-request.type';
+import { AuthController } from './auth.controller';
+
+describe('AuthController', () => {
+  const registerInput: RegisterDto = {
+    email: 'user@example.com',
+    password: 'password-123',
+    displayName: 'Nguyen Van A',
+  };
+
+  const loginInput: LoginDto = {
+    email: 'user@example.com',
+    password: 'password-123',
+  };
+
+  let authService: {
+    register: jest.Mock;
+    login: jest.Mock;
+    refresh: jest.Mock;
+    logout: jest.Mock;
+    getCurrentUser: jest.Mock;
+  };
+
+  let cookieService: {
+    getRefreshToken: jest.Mock;
+    setRefreshToken: jest.Mock;
+    clearRefreshToken: jest.Mock;
+  };
+  let request: Request;
+  let response: Response;
+  let authController: AuthController;
+
+  beforeEach(() => {
+    authService = {
+      register: jest.fn(),
+      login: jest.fn(),
+      refresh: jest.fn(),
+      logout: jest.fn(),
+      getCurrentUser: jest.fn(),
+    };
+    cookieService = {
+      getRefreshToken: jest.fn(),
+      setRefreshToken: jest.fn(),
+      clearRefreshToken: jest.fn(),
+    };
+    request = {} as Request;
+    response = {} as Response;
+    authController = new AuthController(
+      authService as unknown as AuthService,
+      cookieService as unknown as RefreshTokenCookieService,
+    );
+  });
+
+  describe('register', () => {
+    it('sets the refresh cookie and returns only the safe auth response', async () => {
+      const authResponse = {
+        user: {
+          id: '11111111-1111-4111-8111-111111111111',
+          email: 'user@example.com',
+          displayName: 'Nguyen Van A',
+          role: UserRole.User,
+        },
+        accessToken: 'signed-access-token',
+        accessTokenExpiresIn: 900,
+      };
+
+      authService.register.mockResolvedValue({
+        response: authResponse,
+        refreshToken: 'plaintext-refresh-token',
+      });
+
+      const result = await authController.register(registerInput, response);
+
+      expect(authService.register).toHaveBeenCalledWith(registerInput);
+      expect(cookieService.setRefreshToken).toHaveBeenCalledWith(
+        response,
+        'plaintext-refresh-token',
+      );
+      expect(result).toEqual(authResponse);
+      expect(result).not.toHaveProperty('refreshToken');
+      expect(result.user).not.toHaveProperty('passwordHash');
+    });
+
+    it('does not set a cookie when registration fails', async () => {
+      const error = new ConflictException({
+        code: 'AUTH_EMAIL_ALREADY_EXISTS',
+        message: 'Email này đã được sử dụng',
+      });
+
+      authService.register.mockRejectedValue(error);
+
+      await expect(
+        authController.register(registerInput, response),
+      ).rejects.toBe(error);
+
+      expect(cookieService.setRefreshToken).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('login', () => {
+    it('sets the refresh cookie and returns only the safe auth response', async () => {
+      // Arrange
+      const authResponse = {
+        user: {
+          id: '11111111-1111-4111-8111-111111111111',
+          email: 'user@example.com',
+          displayName: 'Nguyen Van A',
+          role: UserRole.User,
+        },
+        accessToken: 'signed-access-token',
+        accessTokenExpiresIn: 900,
+      };
+
+      authService.login.mockResolvedValue({
+        response: authResponse,
+        refreshToken: 'plaintext-refresh-token',
+      });
+
+      // Act
+      const result = await authController.login(loginInput, response);
+
+      // Assert
+      expect(authService.login).toHaveBeenCalledWith(loginInput);
+      expect(cookieService.setRefreshToken).toHaveBeenCalledWith(
+        response,
+        'plaintext-refresh-token',
+      );
+      expect(result).toEqual(authResponse);
+      expect(result).not.toHaveProperty('refreshToken');
+      expect(result.user).not.toHaveProperty('passwordHash');
+    });
+
+    it('does not set a refresh cookie when login fails', async () => {
+      const error = new UnauthorizedException({
+        code: 'AUTH_INVALID_CREDENTIALS',
+        message: 'Email hoặc mật khẩu không hợp lệ',
+      });
+
+      authService.login.mockRejectedValue(error);
+
+      await expect(authController.login(loginInput, response)).rejects.toBe(
+        error,
+      );
+      expect(cookieService.setRefreshToken).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('refresh', () => {
+    it('rotates the refresh cookie and returns only safe auth data', async () => {
+      const authResponse = {
+        user: {
+          id: '11111111-1111-4111-8111-111111111111',
+          email: 'user@example.com',
+          displayName: 'Nguyen Van A',
+          role: UserRole.User,
+        },
+        accessToken: 'replacement-access-token',
+        accessTokenExpiresIn: 900,
+      };
+
+      cookieService.getRefreshToken.mockReturnValue('current-refresh-token');
+      authService.refresh.mockResolvedValue({
+        response: authResponse,
+        refreshToken: 'replacement-refresh-token',
+      });
+
+      const result = await authController.refresh(request, response);
+
+      expect(cookieService.getRefreshToken).toHaveBeenCalledWith(request);
+      expect(authService.refresh).toHaveBeenCalledWith('current-refresh-token');
+      expect(cookieService.setRefreshToken).toHaveBeenCalledWith(
+        response,
+        'replacement-refresh-token',
+      );
+      expect(cookieService.clearRefreshToken).not.toHaveBeenCalled();
+      expect(result).toEqual(authResponse);
+      expect(result).not.toHaveProperty('refreshToken');
+      expect(result.user).not.toHaveProperty('passwordHash');
+    });
+
+    it('rejects a missing refresh cookie and clears it', async () => {
+      cookieService.getRefreshToken.mockReturnValue(undefined);
+
+      let caughtError: unknown;
+
+      try {
+        await authController.refresh(request, response);
+      } catch (error) {
+        caughtError = error;
+      }
+
+      expect(caughtError).toBeInstanceOf(UnauthorizedException);
+      expect((caughtError as UnauthorizedException).getResponse()).toEqual({
+        code: 'AUTH_REFRESH_TOKEN_MISSING',
+        message: 'Không tìm thấy refresh token',
+      });
+      expect(cookieService.clearRefreshToken).toHaveBeenCalledWith(response);
+      expect(authService.refresh).not.toHaveBeenCalled();
+      expect(cookieService.setRefreshToken).not.toHaveBeenCalled();
+    });
+
+    it('clears the refresh cookie and preserves an auth failure', async () => {
+      const error = new UnauthorizedException({
+        code: 'AUTH_REFRESH_TOKEN_REUSED',
+        message: 'Phát hiện refresh token đã được sử dụng lại',
+      });
+
+      cookieService.getRefreshToken.mockReturnValue('reused-refresh-token');
+      authService.refresh.mockRejectedValue(error);
+
+      await expect(authController.refresh(request, response)).rejects.toBe(
+        error,
+      );
+
+      expect(cookieService.clearRefreshToken).toHaveBeenCalledWith(response);
+      expect(cookieService.setRefreshToken).not.toHaveBeenCalled();
+    });
+  });
+
+  // Nhóm test này kiểm tra contract HTTP logout: chuyển cookie xuống service và luôn xóa cookie ở response.
+  describe('logout', () => {
+    // Test này bảo đảm refresh token hiện tại được thu hồi và cookie được xóa khi logout thành công.
+    it('revokes the current session and clears the refresh cookie', async () => {
+      cookieService.getRefreshToken.mockReturnValue('current-refresh-token');
+      authService.logout.mockResolvedValue(undefined);
+
+      await expect(
+        authController.logout(request, response),
+      ).resolves.toBeUndefined();
+
+      expect(cookieService.getRefreshToken).toHaveBeenCalledWith(request);
+      expect(authService.logout).toHaveBeenCalledWith('current-refresh-token');
+      expect(cookieService.clearRefreshToken).toHaveBeenCalledWith(response);
+    });
+
+    // Test này bảo đảm logout không có cookie vẫn là thao tác thành công và vẫn gửi lệnh xóa cookie về trình duyệt.
+    it('clears the cookie and succeeds when the refresh token is missing', async () => {
+      cookieService.getRefreshToken.mockReturnValue(undefined);
+      authService.logout.mockResolvedValue(undefined);
+
+      await expect(
+        authController.logout(request, response),
+      ).resolves.toBeUndefined();
+
+      expect(authService.logout).toHaveBeenCalledWith(undefined);
+      expect(cookieService.clearRefreshToken).toHaveBeenCalledWith(response);
+    });
+
+    // Test này bảo đảm cookie vẫn được xóa bằng khối finally ngay cả khi database thu hồi session thất bại.
+    it('clears the cookie when session revocation fails', async () => {
+      const databaseError = new Error('database unavailable');
+
+      cookieService.getRefreshToken.mockReturnValue('current-refresh-token');
+      authService.logout.mockRejectedValue(databaseError);
+
+      await expect(authController.logout(request, response)).rejects.toBe(
+        databaseError,
+      );
+
+      expect(cookieService.clearRefreshToken).toHaveBeenCalledWith(response);
+    });
+  });
+
+  // Nhóm test này kiểm tra controller lấy userId từ principal do JwtAuthGuard tạo và không tin dữ liệu profile từ request body.
+  describe('me', () => {
+    // Test này bảo đảm endpoint chuyển đúng userId xuống AuthService và trả nguyên safe user.
+    it('returns the current user identified by the authenticated principal', async () => {
+      const authenticatedRequest = {
+        user: {
+          userId: '11111111-1111-4111-8111-111111111111',
+          sessionId: '22222222-2222-4222-8222-222222222222',
+          role: UserRole.User,
+        },
+      } as AuthenticatedRequest;
+
+      const safeUser = {
+        id: authenticatedRequest.user.userId,
+        email: 'user@example.com',
+        displayName: 'Nguyen Van A',
+        role: UserRole.User,
+      };
+
+      authService.getCurrentUser.mockResolvedValue(safeUser);
+
+      const result = await authController.me(authenticatedRequest);
+
+      expect(authService.getCurrentUser).toHaveBeenCalledWith(
+        authenticatedRequest.user.userId,
+      );
+      expect(result).toEqual(safeUser);
+      expect(result).not.toHaveProperty('passwordHash');
+    });
+  });
+});

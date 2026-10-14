@@ -128,5 +128,46 @@ assert(
   'runtime migration condition must appear before its command',
 );
 
+const requiredAuthTestEnvironment = [
+  'JWT_ACCESS_SECRET: ci-test-jwt-secret-minimum-32-characters',
+  'JWT_ACCESS_TTL_SECONDS: "900"',
+  'REFRESH_TOKEN_PEPPER: ci-test-refresh-pepper-minimum-32-characters',
+  'REFRESH_TOKEN_TTL_SECONDS: "604800"',
+  'AUTH_COOKIE_SECURE: "false"',
+  'AUTH_COOKIE_SAME_SITE: lax',
+  'AUTH_REGISTER_RATE_LIMIT: "3"',
+  'AUTH_REGISTER_RATE_TTL_SECONDS: "3600"',
+  'AUTH_LOGIN_RATE_LIMIT: "5"',
+  'AUTH_LOGIN_RATE_TTL_SECONDS: "60"',
+  'AUTH_REFRESH_RATE_LIMIT: "20"',
+  'AUTH_REFRESH_RATE_TTL_SECONDS: "60"',
+]
+
+for (const expectedEnvironment of requiredAuthTestEnvironment) {
+  assert (
+    source.includes(expectedEnvironment),
+    `CI environment must contain ${expectedEnvironment.split(':')[0]}`
+  );
+}
+
+const migrationStepName = '- name: Apply database migrations';
+const migrationStepStart = source.indexOf(migrationStepName);
+const e2eStepStart = source.indexOf('- name: Run API E2E tests');
+
+assert(
+  migrationStepStart >= 0,
+  'CI must apply database migrations before API E2E tests',
+);
+
+assert(
+  source.slice(migrationStepStart).includes('run: pnpm db:migration:run'),
+  'CI migration step must use the workspace migration command',
+);
+
+assert(
+  e2eStepStart >= 0 && migrationStepStart < e2eStepStart,
+  'CI database migrations must run before API E2E tests',
+);
+
 console.log('PASS: CI workflow contract is valid');
 NODE

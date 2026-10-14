@@ -1,99 +1,62 @@
-import {
-  render,
-  screen,
-} from '@testing-library/react';
-import {
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { describe, expect, it, vi } from 'vitest';
 
 import App from './App';
-import {
-  fetchHealth,
-  type HealthResponse,
-} from './api/health';
+import { AuthContext, type AuthContextValue } from './auth/auth-context';
+import type { AuthState } from './auth/auth.types';
 
-vi.mock('./api/health', () => ({
-  fetchHealth: vi.fn(),
-}));
+function renderApp(state: AuthState, initialPath: string) {
+  const auth: AuthContextValue = {
+    state,
+    login: vi.fn(),
+    register: vi.fn(),
+    logout: vi.fn(),
+    request: vi.fn(),
+  };
 
-const fetchHealthMock = vi.mocked(fetchHealth);
+  return render(
+    <AuthContext.Provider value={auth}>
+      <MemoryRouter initialEntries={[initialPath]}>
+        <App />
+      </MemoryRouter>
+    </AuthContext.Provider>,
+  );
+}
 
-describe('App', () => {
-  beforeEach(() => {
-    fetchHealthMock.mockReset();
+describe('App routes', () => {
+  it('renders the registration page for a guest', () => {
+    renderApp({ status: 'unauthenticated' }, '/register');
+
+    expect(
+      screen.getByRole('heading', { name: 'Tạo tài khoản' }),
+    ).toBeInTheDocument();
   });
 
-  it('shows a loading state while checking health', () => {
-    fetchHealthMock.mockImplementation(
-      () => new Promise<HealthResponse>(() => {}),
+  it('redirects an unknown guest route to login', () => {
+    renderApp({ status: 'unauthenticated' }, '/missing');
+
+    expect(
+      screen.getByRole('heading', { name: 'Đăng nhập' }),
+    ).toBeInTheDocument();
+  });
+
+  it('renders the protected home for an authenticated user', () => {
+    renderApp(
+      {
+        status: 'authenticated',
+        user: {
+          id: '11111111-1111-4111-8111-111111111111',
+          email: 'user@example.com',
+          displayName: 'Nguyen Van A',
+          role: 'USER',
+        },
+      },
+      '/',
     );
 
-    render(<App />);
-
     expect(
-      screen.getByText('Checking system status...'),
+      screen.getByText('Xin chào, Nguyen Van A'),
     ).toBeInTheDocument();
-  });
-
-  it('shows API, database and environment when healthy', async () => {
-    fetchHealthMock.mockResolvedValue({
-      status: 'ok',
-      database: 'up',
-      environment: 'development',
-    });
-
-    render(<App />);
-
-    expect(
-      await screen.findByText('API online'),
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByText('Database up'),
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByText('Environment: development'),
-    ).toBeInTheDocument();
-  });
-
-  it.each([
-    ['a network error', new TypeError('Failed to fetch')],
-    ['a non-success response', new Error('Health request failed with status 503')],
-    ['a malformed response', new Error('Invalid health response')],
-  ])(
-    'shows unavailable for %s',
-    async (_description, error) => {
-      fetchHealthMock.mockRejectedValue(error);
-
-      render(<App />);
-
-      expect(
-        await screen.findByText('System unavailable'),
-      ).toBeInTheDocument();
-    },
-  );
-
-  it('aborts the health request when unmounted', () => {
-    let receivedSignal: AbortSignal | undefined;
-
-    fetchHealthMock.mockImplementation((signal) => {
-      receivedSignal = signal;
-
-      return new Promise<HealthResponse>(() => {});
-    });
-
-    const { unmount } = render(<App />);
-
-    expect(fetchHealthMock).toHaveBeenCalledTimes(1);
-    expect(receivedSignal?.aborted).toBe(false);
-
-    unmount();
-
-    expect(receivedSignal?.aborted).toBe(true);
   });
 });

@@ -58,6 +58,16 @@ Tạo các Environment Variables sau:
 | `POSTGRES_DB` | `project_management` |
 | `POSTGRES_USER` | `project_management` |
 | `SWAGGER_ENABLED` | `true` |
+| `JWT_ACCESS_TTL_SECONDS` | `900` |
+| `REFRESH_TOKEN_TTL_SECONDS` | `604800` |
+| `AUTH_COOKIE_SECURE` | `true` |
+| `AUTH_COOKIE_SAME_SITE` | `lax` |
+| `AUTH_REGISTER_RATE_LIMIT` | `3` |
+| `AUTH_REGISTER_RATE_TTL_SECONDS` | `3600` |
+| `AUTH_LOGIN_RATE_LIMIT` | `5` |
+| `AUTH_LOGIN_RATE_TTL_SECONDS` | `60` |
+| `AUTH_REFRESH_RATE_LIMIT` | `20` |
+| `AUTH_REFRESH_RATE_TTL_SECONDS` | `60` |
 
 Đây là cấu hình không nhạy cảm nên được lưu dưới dạng Environment Variables, không phải secrets.
 
@@ -68,6 +78,8 @@ Tạo Environment Secret:
 | Tên | Nội dung |
 | --- | --- |
 | `POSTGRES_PASSWORD` | Mật khẩu PostgreSQL mạnh của môi trường DEV |
+| `JWT_ACCESS_SECRET` | Secret ký access token, tối thiểu 32 ký tự |
+| `REFRESH_TOKEN_PEPPER` | Secret độc lập dùng digest refresh token, tối thiểu 32 ký tự |
 
 Mật khẩu phải dài từ 24 đến 128 ký tự và chỉ dùng các ký tự thuộc tập:
 
@@ -76,6 +88,8 @@ A-Z a-z 0-9 . _ ~ ! @ % + = : , -
 ```
 
 Không sử dụng khoảng trắng, `#`, `$`, dấu nháy hoặc ký tự xuống dòng. Không ghi mật khẩu vào workflow, repository, Docker image, job summary hoặc ảnh chụp màn hình.
+
+`JWT_ACCESS_SECRET` và `REFRESH_TOKEN_PEPPER` phải là hai giá trị ngẫu nhiên khác nhau. Không tái sử dụng `POSTGRES_PASSWORD` cho hai secrets này và không đưa giá trị thật vào log hoặc ảnh chụp màn hình.
 
 ### GHCR permissions
 
@@ -512,6 +526,8 @@ Trên GitHub, xác nhận:
 - Environment `dev` ghi nhận deployment mới.
 - Hai GHCR images có cùng tag `sha-<commit>`.
 - `DEPLOYED_SHA` trong summary trùng với `current-release`.
+
+Sau khi health check xanh, thực hiện Auth smoke test theo [runbook authentication](authentication.md). Dùng tài khoản test riêng của DEV và không ghi password, cookie hoặc token vào workflow log, issue hay pull request.
 
 ## Phạm vi production
 

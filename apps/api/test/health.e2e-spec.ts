@@ -6,6 +6,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import type { EnvironmentVariables } from '../src/config/environment.schema';
 import { setupSwagger } from '../src/swagger/setup-swagger';
+import { createApplicationValidationPipe } from '../src/common/validation/create-application-validation-pipe';
 
 describe('Health endpoint (e2e)', () => {
   let app: INestApplication;
@@ -17,12 +18,11 @@ describe('Health endpoint (e2e)', () => {
 
     app = testingModule.createNestApplication();
 
-    const configService = app.get(
-      ConfigService<EnvironmentVariables, true>,
-    );
+    app.useGlobalPipes(createApplicationValidationPipe());
 
-    const swaggerEnabled =
-      configService.getOrThrow<boolean>('SWAGGER_ENABLED');
+    const configService = app.get(ConfigService<EnvironmentVariables, true>);
+
+    const swaggerEnabled = configService.getOrThrow<boolean>('SWAGGER_ENABLED');
 
     app.setGlobalPrefix('api');
     setupSwagger(app, swaggerEnabled);
@@ -51,8 +51,6 @@ describe('Health endpoint (e2e)', () => {
   });
 
   it('does not expose Swagger docs when disabled', async () => {
-    await request(app.getHttpServer())
-      .get('/api/docs')
-      .expect(404);
+    await request(app.getHttpServer()).get('/api/docs').expect(404);
   });
 });
