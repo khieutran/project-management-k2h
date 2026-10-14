@@ -11,6 +11,7 @@ import type { EnvironmentVariables } from './config/environment.schema';
 import { validateEnvironment } from './config/environment.schema';
 import { createTypeOrmOptions } from './database/typeorm.config';
 import { HealthModule } from './health/health.module';
+import { ProjectsModule } from './projects/projects.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { HealthModule } from './health/health.module';
 
     AuthModule,
     HealthModule,
+    ProjectsModule,
   ],
   providers: [
     {
