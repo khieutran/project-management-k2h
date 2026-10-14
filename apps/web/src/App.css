@@ -298,3 +298,53 @@
     animation-duration: 1.8s;
   }
 }
+
+.brand-link, .project-nav a, .primary-link, .secondary-link,
+.project-card a, .projects-content > a { color: inherit; text-decoration: none; }
+.brand-link { display: grid; }
+.project-nav, .page-heading, .project-card-heading, .project-actions,
+.dialog-actions, .pagination { display: flex; align-items: center; gap: 0.75rem; }
+.project-nav span { color: var(--color-muted); }
+.projects-content { width: min(100% - 2rem, 70rem); margin: 0 auto; padding: 2.5rem 0 5rem; }
+.page-heading { justify-content: space-between; margin-bottom: 1.5rem; }
+.page-heading h1, .form-card h1, .project-detail h1 { margin: 0; }
+.primary-link, .secondary-link { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0.55rem 1rem; border-radius: 0.65rem; font-weight: 700; }
+.primary-link { color: white; background: var(--color-primary); }
+.secondary-link { border: 1px solid var(--color-border); background: white; }
+.project-tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; }
+.project-tabs a { padding: 0.75rem 1rem; color: var(--color-muted); text-decoration: none; }
+.project-tabs a.active { border-bottom: 2px solid var(--color-primary); color: var(--color-primary); font-weight: 700; }
+.project-filters { display: grid; grid-template-columns: minmax(14rem, 1fr) minmax(10rem, 0.35fr) auto; align-items: end; gap: 1rem; margin-bottom: 1.5rem; }
+.project-filters label { display: grid; gap: 0.4rem; font-weight: 700; }
+.project-filters input, .project-filters select, .project-form input,
+.project-form textarea { width: 100%; padding: 0.7rem 0.85rem; border: 1px solid var(--color-border); border-radius: 0.65rem; background: white; }
+.project-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1rem; }
+.project-card, .project-detail, .form-card, .state-panel { padding: 1.5rem; border: 1px solid #e2e8f0; border-radius: 1rem; background: white; }
+.project-card-heading { justify-content: space-between; }
+.project-card h2 { margin: 1rem 0 0.5rem; }
+.project-card > p, .project-description, .form-card > p { color: var(--color-muted); line-height: 1.6; }
+.project-key { color: var(--color-primary); font-weight: 800; letter-spacing: 0.08em; }
+.project-owner { font-size: 0.875rem; }
+.status-badge { padding: 0.3rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 800; background: #e2e8f0; }
+.status-active { color: #166534; background: #dcfce7; }
+.status-completed { color: #1e40af; background: #dbeafe; }
+.status-planning { color: #92400e; background: #fef3c7; }
+.form-card, .project-detail { max-width: 48rem; margin: 1.5rem auto 0; }
+.project-form { display: grid; gap: 1.1rem; margin-top: 1.5rem; }
+.project-date-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.project-metadata { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; padding: 1rem 0; border-block: 1px solid #e2e8f0; }
+.project-metadata dt { color: var(--color-muted); font-size: 0.8rem; }
+.project-metadata dd { margin: 0.25rem 0 0; font-weight: 700; }
+.project-actions { flex-wrap: wrap; margin-top: 1.25rem; }
+.project-actions button, .pagination button, .danger-button, .danger-link { min-height: 2.5rem; padding: 0.5rem 0.8rem; border: 1px solid var(--color-border); border-radius: 0.55rem; background: white; cursor: pointer; }
+.danger-button, .danger-link { color: white; border-color: var(--color-danger); background: var(--color-danger); }
+.readonly-note { color: var(--color-muted); font-style: italic; }
+.pagination { justify-content: center; margin-top: 1.5rem; }
+.dialog-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 1rem; background: rgb(15 23 42 / 55%); }
+.delete-dialog { width: min(100%, 28rem); padding: 1.5rem; border-radius: 1rem; background: white; box-shadow: 0 1.5rem 4rem rgb(15 23 42 / 25%); }
+.dialog-actions { justify-content: flex-end; margin-top: 1.5rem; }
+
+@media (max-width: 42rem) {
+  .project-filters, .project-date-grid, .project-metadata { grid-template-columns: 1fr; }
+  .project-nav { flex-wrap: wrap; justify-content: flex-end; }
+}

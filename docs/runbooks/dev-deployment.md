@@ -527,7 +527,23 @@ Trên GitHub, xác nhận:
 - Hai GHCR images có cùng tag `sha-<commit>`.
 - `DEPLOYED_SHA` trong summary trùng với `current-release`.
 
-Sau khi health check xanh, thực hiện Auth smoke test theo [runbook authentication](authentication.md). Dùng tài khoản test riêng của DEV và không ghi password, cookie hoặc token vào workflow log, issue hay pull request.
+Sau khi health check xanh:
+
+1. Thực hiện Auth smoke test theo [runbook authentication](authentication.md).
+2. Thực hiện owner, cross-user, ADMIN và cache-isolation smoke test theo [runbook quản lý dự án](project-management.md#smoke-test-owner).
+3. Xác nhận migration `CreateProjects` đã được ghi nhận và API không báo `relation "projects" does not exist`.
+
+Dùng tài khoản test riêng của DEV và không ghi password, cookie hoặc token vào workflow log, issue hay pull request.
+
+### Tiêu chí nghiệm thu Phase 2 trên DEV
+
+- Owner tạo, xem, sửa, chuyển trạng thái, archive, restore và xóa project thành công.
+- User khác không thấy và không đọc được project của owner.
+- ADMIN thấy project của mọi owner và tab đã xóa nhưng không mutate project người khác.
+- Logout rồi đăng nhập actor khác không hiển thị project cache của actor trước.
+- `DEPLOYED_SHA`, `current-release` và tag của hai GHCR images cùng một full commit SHA.
+
+Nếu smoke test application thất bại sau khi migration đã thành công, giữ nguyên database schema, thu thập SHA/log an toàn và rollback application theo phần trên. Không chạy `migration:revert` như một phản xạ xử lý sự cố.
 
 ## Phạm vi production
 

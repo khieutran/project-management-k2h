@@ -19,7 +19,7 @@ Hệ thống quản lý dự án của nhóm K2H, được tổ chức theo mô 
 | Runtime | Node.js 24 |
 | Package manager | pnpm 12 |
 | Backend | NestJS 12 |
-| Frontend | React 19, React Router 7, Vite 8 |
+| Frontend | React 19, React Router 7, TanStack Query 5, Vite 8 |
 | Cơ sở dữ liệu | PostgreSQL 17 |
 | ORM | TypeORM |
 | Kiểm thử API | Jest, Supertest |
@@ -161,7 +161,7 @@ pnpm db:migration:show
 pnpm db:migration:run
 ```
 
-Ở giai đoạn hiện tại có thể chưa có migration nào, vì vậy `migration:show` không in ra danh sách vẫn là kết quả hợp lệ.
+Repository hiện có migration cho user, refresh session và project. `migration:show` phải kết nối được đúng database; chạy `migration:run` trước lần khởi động ứng dụng đầu tiên và sau khi pull code có migration mới.
 
 ### 6. Khởi động API và Web
 
@@ -220,6 +220,10 @@ Các route Web:
 | `/register` | Guest | Tạo tài khoản mới |
 | `/login` | Guest | Đăng nhập |
 | `/` | Authenticated | Home xác nhận phiên và hiển thị safe user |
+| `/projects` | Authenticated | Danh sách project theo quyền của người dùng |
+| `/projects/new` | Authenticated | Tạo project mới |
+| `/projects/:projectId` | Owner hoặc ADMIN | Chi tiết project |
+| `/projects/:projectId/edit` | Owner | Chỉnh sửa project |
 
 Kiểm tra thủ công:
 
@@ -232,6 +236,24 @@ Kiểm tra thủ công:
 Request `POST /api/auth/refresh` trả `401` trước khi người dùng đăng nhập là hành vi bình thường. Không lưu access token hoặc refresh token vào `localStorage`, `sessionStorage`, log, issue hoặc ảnh chụp màn hình.
 
 Xem contract, xử lý sự cố và smoke test tại [runbook authentication](docs/runbooks/authentication.md).
+
+## Quản lý dự án
+
+Mỗi người dùng đã đăng nhập có thể tạo project và trở thành owner. Owner có quyền cập nhật, chuyển trạng thái, archive, restore và xóa mềm project của mình.
+
+ADMIN có read scope toàn hệ thống để xem project của mọi owner và danh sách đã xóa. ADMIN không tự động có quyền mutate project của người khác.
+
+Vòng đời project:
+
+```text
+PLANNING → ACTIVE → COMPLETED
+                ↑        │
+                └────────┘
+```
+
+Web sử dụng TanStack Query với cache key chứa actor ID. Project cache được xóa khi logout hoặc đổi identity và không được persist trong browser storage.
+
+Xem API contract, permission matrix, smoke test và xử lý sự cố tại [runbook quản lý dự án](docs/runbooks/project-management.md).
 
 ## Quản lý PostgreSQL local
 
@@ -494,9 +516,12 @@ Foundation hiện đã cung cấp:
 - Đăng ký, đăng nhập, refresh rotation, đăng xuất và endpoint current user.
 - JWT authentication, role guard, rate limiting và error contract an toàn.
 - React AuthProvider, protected routes và giao diện Login/Register/Home.
+- Project API với owner scope, ADMIN read-only toàn hệ thống và soft delete.
+- React UI cho danh sách, tìm kiếm, lọc, phân trang, tạo, chi tiết và chỉnh sửa project.
+- TanStack Query cache được cô lập theo authenticated actor.
 
 Các phần chưa thuộc phạm vi hiện tại:
 
-- Trang quản trị người dùng và các chức năng quản lý dự án, công việc.
+- Trang quản trị người dùng, project membership và quản lý công việc.
 - Hạ tầng production, backup và disaster recovery.
 - Monitoring, logging tập trung và cảnh báo production.

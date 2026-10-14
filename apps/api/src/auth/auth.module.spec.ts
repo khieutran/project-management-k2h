@@ -44,6 +44,13 @@ describe('AuthModule', () => {
     expect(exports).toContain(RolesGuard);
   });
 
+  it('exports the token service required by guards in feature modules', () => {
+    const exports = Reflect.getMetadata(MODULE_METADATA.EXPORTS, AuthModule) as
+      unknown[] | undefined;
+
+    expect(exports).toContain(TokenService);
+  });
+
   it('can be compiled as a Nest feature module', async () => {
     const userRepository = {};
     const refreshSessionRepository = {};
