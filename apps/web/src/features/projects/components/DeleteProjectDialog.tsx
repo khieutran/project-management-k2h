@@ -1,0 +1,3 @@
+export function DeleteProjectDialog({ projectName, isPending, onCancel, onConfirm }: { projectName: string; isPending: boolean; onCancel(): void; onConfirm(): void }) {
+  return <div className="dialog-backdrop"><section className="delete-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-title"><h2 id="delete-title">Xóa dự án?</h2><p>Dự án “{projectName}” sẽ được chuyển vào danh sách đã xóa.</p><div className="dialog-actions"><button className="secondary-button" type="button" onClick={onCancel}>Hủy</button><button className="danger-button" type="button" disabled={isPending} onClick={onConfirm}>{isPending ? 'Đang xóa...' : 'Xóa dự án'}</button></div></section></div>;
+}

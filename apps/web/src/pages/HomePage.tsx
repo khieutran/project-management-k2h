@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { useAuth } from '../auth/use-auth';
 
@@ -53,6 +54,7 @@ export function HomePage() {
           <p className="home-eyebrow">Authentication ready</p>
           <h1>Xin chào, {user.displayName}</h1>
           <p>Bạn đã đăng nhập thành công vào hệ thống quản lý dự án K2H.</p>
+          <Link className="primary-link" to="/projects">Mở danh sách dự án</Link>
         </section>
 
         <section className="account-card" aria-labelledby="account-title">
