@@ -1,10 +1,14 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { QueryFailedError, type Repository } from 'typeorm';
 
 import type { AuthenticatedPrincipal } from '../auth/types/authenticated-principal.type';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../users/enums/user-role.enum';
 import type { CreateProjectDto } from './dto/create-project.dto';
+import {
+  type ListProjectsQueryDto,
+  ProjectListView,
+} from './dto/list-projects-query.dto';
 import { Project } from './entities/project.entity';
 import { ProjectStatus } from './enums/project-status.enum';
 import { ProjectsService } from './projects.service';
@@ -27,14 +31,34 @@ describe('ProjectsService', () => {
     create: jest.Mock;
     save: jest.Mock;
     findOne: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
+  let queryBuilder: {
+    innerJoinAndSelect: jest.Mock;
+    andWhere: jest.Mock;
+    withDeleted: jest.Mock;
+    orderBy: jest.Mock;
+    skip: jest.Mock;
+    take: jest.Mock;
+    getManyAndCount: jest.Mock;
   };
   let projectsService: ProjectsService;
 
   beforeEach(() => {
+    queryBuilder = {
+      innerJoinAndSelect: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      withDeleted: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn(),
+    };
     repository = {
       create: jest.fn(),
       save: jest.fn(),
       findOne: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
     };
     projectsService = new ProjectsService(
       repository as unknown as Repository<Project>,
@@ -182,6 +206,169 @@ describe('ProjectsService', () => {
       await expect(projectsService.create(actor, input)).rejects.toBe(
         databaseError,
       );
+    });
+  });
+
+  describe('findAll', () => {
+    function createLoadedProject(overrides: Partial<Project> = {}): Project {
+      const owner = Object.assign(new User(), {
+        id: actor.userId,
+        displayName: 'Nguyen Van A',
+      });
+
+      return Object.assign(new Project(), {
+        id: '22222222-2222-4222-8222-222222222222',
+        key: 'K2H',
+        name: 'Project Management K2H',
+        description: null,
+        ownerId: owner.id,
+        owner,
+        status: ProjectStatus.Planning,
+        startDate: null,
+        endDate: null,
+        archivedAt: null,
+        deletedAt: null,
+        createdAt: new Date('2026-10-15T10:00:00.000Z'),
+        updatedAt: new Date('2026-10-16T10:00:00.000Z'),
+        ...overrides,
+      });
+    }
+
+    it('lists only current projects owned by a USER with pagination metadata', async () => {
+      const project = createLoadedProject();
+      const query: ListProjectsQueryDto = {
+        page: 2,
+        limit: 10,
+        view: ProjectListView.Current,
+      };
+
+      queryBuilder.getManyAndCount.mockResolvedValue([[project], 21]);
+
+      const result = await projectsService.findAll(actor, query);
+
+      expect(repository.createQueryBuilder).toHaveBeenCalledWith('project');
+      expect(queryBuilder.innerJoinAndSelect).toHaveBeenCalledWith(
+        'project.owner',
+        'owner',
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'project.ownerId = :ownerId',
+        { ownerId: actor.userId },
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'project.archivedAt IS NULL',
+      );
+      expect(queryBuilder.withDeleted).not.toHaveBeenCalled();
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith(
+        'project.updatedAt',
+        'DESC',
+      );
+      expect(queryBuilder.skip).toHaveBeenCalledWith(10);
+      expect(queryBuilder.take).toHaveBeenCalledWith(10);
+      expect(result.pagination).toEqual({
+        page: 2,
+        limit: 10,
+        total: 21,
+        totalPages: 3,
+      });
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]).not.toHaveProperty('ownerId');
+    });
+
+    it('allows an ADMIN to list archived projects from every owner', async () => {
+      const adminActor: AuthenticatedPrincipal = {
+        ...actor,
+        role: UserRole.Admin,
+      };
+      const query: ListProjectsQueryDto = {
+        page: 1,
+        limit: 20,
+        view: ProjectListView.Archived,
+      };
+
+      queryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
+
+      await projectsService.findAll(adminActor, query);
+
+      expect(queryBuilder.andWhere).not.toHaveBeenCalledWith(
+        'project.ownerId = :ownerId',
+        expect.anything(),
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'project.archivedAt IS NOT NULL',
+      );
+    });
+
+    it('rejects the deleted view for a non-ADMIN before querying', async () => {
+      const query: ListProjectsQueryDto = {
+        page: 1,
+        limit: 20,
+        view: ProjectListView.Deleted,
+      };
+
+      let caughtError: unknown;
+
+      try {
+        await projectsService.findAll(actor, query);
+      } catch (error) {
+        caughtError = error;
+      }
+
+      expect(caughtError).toBeInstanceOf(ForbiddenException);
+      expect((caughtError as ForbiddenException).getResponse()).toEqual({
+        code: 'PROJECT_DELETED_VIEW_FORBIDDEN',
+        message: 'Chỉ ADMIN được xem project đã xóa',
+      });
+      expect(repository.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('uses an explicit deleted scope for the ADMIN deleted view', async () => {
+      const adminActor: AuthenticatedPrincipal = {
+        ...actor,
+        role: UserRole.Admin,
+      };
+      const query: ListProjectsQueryDto = {
+        page: 1,
+        limit: 20,
+        view: ProjectListView.Deleted,
+      };
+
+      queryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
+
+      await projectsService.findAll(adminActor, query);
+
+      expect(queryBuilder.withDeleted).toHaveBeenCalledTimes(1);
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'project.deletedAt IS NOT NULL',
+      );
+    });
+
+    it('filters status and passes escaped wildcard search as a parameter', async () => {
+      const query: ListProjectsQueryDto = {
+        page: 1,
+        limit: 20,
+        search: '50%_done',
+        status: ProjectStatus.Active,
+        view: ProjectListView.Current,
+      };
+
+      queryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
+
+      await projectsService.findAll(actor, query);
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'project.status = :status',
+        { status: ProjectStatus.Active },
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining(':search'),
+        { search: '%50\\%\\_done%' },
+      );
+      const searchSql = queryBuilder.andWhere.mock.calls.find(
+        ([sql]) => typeof sql === 'string' && sql.includes(':search'),
+      )?.[0] as string | undefined;
+
+      expect(searchSql).not.toContain('50%_done');
     });
   });
 });
