@@ -150,5 +150,24 @@ for (const expectedEnvironment of requiredAuthTestEnvironment) {
   );
 }
 
+const migrationStepName = '- name: Apply database migrations';
+const migrationStepStart = source.indexOf(migrationStepName);
+const e2eStepStart = source.indexOf('- name: Run API E2E tests');
+
+assert(
+  migrationStepStart >= 0,
+  'CI must apply database migrations before API E2E tests',
+);
+
+assert(
+  source.slice(migrationStepStart).includes('run: pnpm db:migration:run'),
+  'CI migration step must use the workspace migration command',
+);
+
+assert(
+  e2eStepStart >= 0 && migrationStepStart < e2eStepStart,
+  'CI database migrations must run before API E2E tests',
+);
+
 console.log('PASS: CI workflow contract is valid');
 NODE

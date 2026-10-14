@@ -106,6 +106,9 @@ jobs:
       - name: Run unit tests
         run: pnpm test
 
+      - name: Apply database migrations
+        run: pnpm db:migration:run
+
       - name: Run API E2E tests
         run: pnpm test:e2e
 
