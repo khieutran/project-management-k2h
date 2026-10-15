@@ -8,9 +8,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, QueryFailedError, type Repository } from 'typeorm';
 
 import type { AuthenticatedPrincipal } from '../auth/types/authenticated-principal.type';
+import type { Project } from '../projects/entities/project.entity';
+import { ProjectAccessRole } from '../projects/enums/project-access-role.enum';
 import { ProjectAccessService } from '../projects/project-access.service';
 import { UsersService } from '../users/users.service';
 import type { AddProjectMemberDto } from './dto/add-project-member.dto';
+import type { ChangeProjectMemberRoleDto } from './dto/change-project-member-role.dto';
 import { ProjectMember } from './entities/project-member.entity';
 import {
   toProjectMemberResponse,
@@ -112,6 +115,119 @@ export class ProjectMembersService {
         throw error;
       }
     });
+  }
+
+  async changeRole(
+    actor: AuthenticatedPrincipal,
+    projectId: string,
+    userId: string,
+    input: ChangeProjectMemberRoleDto,
+  ): Promise<ProjectMemberResponse> {
+    return this.dataSource.transaction(async (entityManager) => {
+      await this.projectAccessService.findOwnedMutableProjectOrThrow(
+        actor,
+        projectId,
+        entityManager,
+      );
+
+      const repository = entityManager.getRepository(ProjectMember);
+      const membership = await this.findMembershipOrThrow(
+        repository,
+        projectId,
+        userId,
+      );
+
+      membership.role = input.role;
+
+      return toProjectMemberResponse(await repository.save(membership));
+    });
+  }
+
+  async remove(
+    actor: AuthenticatedPrincipal,
+    projectId: string,
+    userId: string,
+  ): Promise<void> {
+    await this.dataSource.transaction(async (entityManager) => {
+      await this.projectAccessService.findOwnedMutableProjectOrThrow(
+        actor,
+        projectId,
+        entityManager,
+      );
+
+      const repository = entityManager.getRepository(ProjectMember);
+      const membership = await this.findMembershipOrThrow(
+        repository,
+        projectId,
+        userId,
+      );
+
+      await repository.remove(membership);
+    });
+  }
+
+  async leave(
+    actor: AuthenticatedPrincipal,
+    projectId: string,
+  ): Promise<void> {
+    await this.dataSource.transaction(async (entityManager) => {
+      const { project, accessRole } =
+        await this.projectAccessService.findReadableProjectOrThrow(
+          actor,
+          projectId,
+          { entityManager },
+        );
+
+      if (accessRole === ProjectAccessRole.Owner) {
+        throw new BadRequestException({
+          code: 'PROJECT_OWNER_CANNOT_LEAVE',
+          message: 'Owner không thể rời project',
+        });
+      }
+
+      this.assertProjectMembershipIsMutable(project);
+
+      const repository = entityManager.getRepository(ProjectMember);
+      const membership = await this.findMembershipOrThrow(
+        repository,
+        projectId,
+        actor.userId,
+      );
+
+      await repository.remove(membership);
+    });
+  }
+
+  private async findMembershipOrThrow(
+    repository: Repository<ProjectMember>,
+    projectId: string,
+    userId: string,
+  ): Promise<ProjectMember> {
+    const membership = await repository
+      .createQueryBuilder('membership')
+      .innerJoinAndSelect('membership.user', 'user')
+      .andWhere('membership.projectId = :projectId', { projectId })
+      .andWhere('membership.userId = :userId', { userId })
+      .setLock('pessimistic_write')
+      .getOne();
+
+    if (!membership) {
+      throw new NotFoundException({
+        code: 'PROJECT_MEMBER_NOT_FOUND',
+        message: 'Không tìm thấy thành viên trong dự án',
+      });
+    }
+
+    return membership;
+  }
+
+  private assertProjectMembershipIsMutable(project: Project): void {
+    if (project.archivedAt || project.deletedAt) {
+      throw new ConflictException({
+        code: 'PROJECT_MEMBERSHIP_LOCKED',
+        message: 'Không thể thay đổi thành viên của project đã khóa',
+      });
+    }
   }
 
   private isPostgresUniqueViolation(error: unknown): boolean {
