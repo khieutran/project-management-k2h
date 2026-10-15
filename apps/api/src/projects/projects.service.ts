@@ -18,8 +18,10 @@ import {
 } from './dto/list-projects-query.dto';
 import type { UpdateProjectDto } from './dto/update-project.dto';
 import { Project } from './entities/project.entity';
+import { ProjectAccessRole } from './enums/project-access-role.enum';
 import { ProjectStatus } from './enums/project-status.enum';
 import { toProjectResponse } from './mappers/to-project-response';
+import { ProjectAccessService } from './project-access.service';
 import type { PaginatedProjects } from './types/paginated-projects.type';
 import type { ProjectResponse } from './types/project-response.type';
 
@@ -37,6 +39,7 @@ export class ProjectsService {
     @InjectRepository(Project)
     private readonly projectsRepository: Repository<Project>,
     private readonly dataSource: DataSource,
+    private readonly projectAccessService: ProjectAccessService,
   ) {}
 
   async create(
@@ -76,7 +79,7 @@ export class ProjectsService {
       throw new Error('Created project could not be reloaded');
     }
 
-    return toProjectResponse(projectWithOwner);
+    return toProjectResponse(projectWithOwner, ProjectAccessRole.Owner);
   }
 
   async findAll(
@@ -92,12 +95,19 @@ export class ProjectsService {
 
     const queryBuilder = this.projectsRepository
       .createQueryBuilder('project')
-      .innerJoinAndSelect('project.owner', 'owner');
+      .innerJoinAndSelect('project.owner', 'owner')
+      .leftJoinAndSelect(
+        'project.members',
+        'actorMembership',
+        'actorMembership.userId = :actorUserId',
+        { actorUserId: actor.userId },
+      );
 
     if (actor.role !== UserRole.Admin) {
-      queryBuilder.andWhere('project.ownerId = :ownerId', {
-        ownerId: actor.userId,
-      });
+      queryBuilder.andWhere(
+        '(project.ownerId = :actorUserId OR actorMembership.userId = :actorUserId)',
+        { actorUserId: actor.userId },
+      );
     }
 
     if (query.view === ProjectListView.Current) {
@@ -131,7 +141,20 @@ export class ProjectsService {
     const [projects, total] = await queryBuilder.getManyAndCount();
 
     return {
-      data: projects.map((project) => toProjectResponse(project)),
+      data: projects.map((project) => {
+        const membership = project.members?.[0] ?? null;
+        const accessRole = this.projectAccessService.resolveAccessRole(
+          actor,
+          project,
+          membership,
+        );
+
+        if (!accessRole) {
+          throw new Error('Readable project must resolve an access role');
+        }
+
+        return toProjectResponse(project, accessRole);
+      }),
       pagination: {
         page: query.page,
         limit: query.limit,
@@ -146,32 +169,14 @@ export class ProjectsService {
     projectId: string,
     options: { includeDeleted: boolean },
   ): Promise<ProjectResponse> {
-    if (options.includeDeleted && actor.role !== UserRole.Admin) {
-      throw this.createDeletedViewForbidden();
-    }
+    const { project, accessRole } =
+      await this.projectAccessService.findReadableProjectOrThrow(
+        actor,
+        projectId,
+        options,
+      );
 
-    const queryBuilder = this.projectsRepository
-      .createQueryBuilder('project')
-      .innerJoinAndSelect('project.owner', 'owner')
-      .andWhere('project.id = :projectId', { projectId });
-
-    if (actor.role !== UserRole.Admin) {
-      queryBuilder.andWhere('project.ownerId = :ownerId', {
-        ownerId: actor.userId,
-      });
-    }
-
-    if (options.includeDeleted) {
-      queryBuilder.withDeleted();
-    }
-
-    const project = await queryBuilder.getOne();
-
-    if (!project) {
-      throw this.createProjectNotFound();
-    }
-
-    return toProjectResponse(project);
+    return toProjectResponse(project, accessRole);
   }
 
   async update(
@@ -218,7 +223,7 @@ export class ProjectsService {
 
       const savedProject = await repository.save(project);
 
-      return toProjectResponse(savedProject);
+      return toProjectResponse(savedProject, ProjectAccessRole.Owner);
     });
   }
 
@@ -242,7 +247,7 @@ export class ProjectsService {
 
       const savedProject = await repository.save(project);
 
-      return toProjectResponse(savedProject);
+      return toProjectResponse(savedProject, ProjectAccessRole.Owner);
     });
   }
 
@@ -259,12 +264,15 @@ export class ProjectsService {
       );
 
       if (project.archivedAt) {
-        return toProjectResponse(project);
+        return toProjectResponse(project, ProjectAccessRole.Owner);
       }
 
       project.archivedAt = new Date();
 
-      return toProjectResponse(await repository.save(project));
+      return toProjectResponse(
+        await repository.save(project),
+        ProjectAccessRole.Owner,
+      );
     });
   }
 
@@ -281,12 +289,15 @@ export class ProjectsService {
       );
 
       if (!project.archivedAt) {
-        return toProjectResponse(project);
+        return toProjectResponse(project, ProjectAccessRole.Owner);
       }
 
       project.archivedAt = null;
 
-      return toProjectResponse(await repository.save(project));
+      return toProjectResponse(
+        await repository.save(project),
+        ProjectAccessRole.Owner,
+      );
     });
   }
 
