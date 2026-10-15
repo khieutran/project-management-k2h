@@ -4,7 +4,9 @@ import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthModule } from '../auth/auth.module';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ProjectMember } from '../project-members/entities/project-member.entity';
 import { Project } from './entities/project.entity';
+import { ProjectAccessService } from './project-access.service';
 import { ProjectsController } from './projects.controller';
 import { ProjectsModule } from './projects.module';
 import { ProjectsService } from './projects.service';
@@ -23,6 +25,10 @@ describe('ProjectsModule', () => {
       MODULE_METADATA.PROVIDERS,
       ProjectsModule,
     ) as Provider[] | undefined;
+    const exports = Reflect.getMetadata(
+      MODULE_METADATA.EXPORTS,
+      ProjectsModule,
+    ) as unknown[] | undefined;
 
     const typeOrmFeature = imports?.find(
       (moduleImport): moduleImport is DynamicModule =>
@@ -38,11 +44,16 @@ describe('ProjectsModule', () => {
         expect.objectContaining({
           provide: getRepositoryToken(Project),
         }),
+        expect.objectContaining({
+          provide: getRepositoryToken(ProjectMember),
+        }),
       ]),
     );
     expect(imports).toContain(AuthModule);
     expect(controllers).toContain(ProjectsController);
     expect(providers).toContain(ProjectsService);
+    expect(providers).toContain(ProjectAccessService);
+    expect(exports).toContain(ProjectAccessService);
   });
 
   it('protects every project endpoint with the JWT auth guard', () => {
