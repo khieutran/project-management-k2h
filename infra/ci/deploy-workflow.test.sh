@@ -159,6 +159,26 @@ assert(
   'published images must use the immutable workflow SHA tag',
 );
 
+const expectedApiImage = 'ghcr.io/khieutran/project-management-k2h-api';
+const expectedWebImage = 'ghcr.io/khieutran/project-management-k2h-web';
+
+assert(
+  publishJob.includes(`API_IMAGE: ${expectedApiImage}`) &&
+    deployJob.includes(`API_IMAGE: ${expectedApiImage}`),
+  'build and deploy must use the khieutran API image namespace',
+);
+
+assert(
+  publishJob.includes(`WEB_IMAGE: ${expectedWebImage}`) &&
+    deployJob.includes(`WEB_IMAGE: ${expectedWebImage}`),
+  'build and deploy must use the khieutran Web image namespace',
+);
+
+assert(
+  !source.includes('ghcr.io/tvkhieu1998/'),
+  'workflow must not use the retired tvkhieu1998 GHCR namespace',
+);
+
 const buildCommands = publishJob.match(/\bdocker build\b/g) ?? [];
 const pushCommands = publishJob.match(/\bdocker push\b/g) ?? [];
 

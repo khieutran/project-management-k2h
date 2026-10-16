@@ -51,8 +51,8 @@ jobs:
       packages: write
 
     env:
-      API_IMAGE: ghcr.io/tvkhieu1998/project-management-k2h-api
-      WEB_IMAGE: ghcr.io/tvkhieu1998/project-management-k2h-web
+      API_IMAGE: ghcr.io/khieutran/project-management-k2h-api
+      WEB_IMAGE: ghcr.io/khieutran/project-management-k2h-web
       IMAGE_TAG: sha-${{ github.sha }}
       OCI_SOURCE: ${{ github.server_url }}/${{ github.repository }}
 
@@ -121,8 +121,8 @@ jobs:
       COMPOSE_PROJECT_NAME: ${{ vars.COMPOSE_PROJECT_NAME }}
       DEV_BASE_URL: ${{ vars.DEV_BASE_URL }}
 
-      API_IMAGE: ghcr.io/tvkhieu1998/project-management-k2h-api
-      WEB_IMAGE: ghcr.io/tvkhieu1998/project-management-k2h-web
+      API_IMAGE: ghcr.io/khieutran/project-management-k2h-api
+      WEB_IMAGE: ghcr.io/khieutran/project-management-k2h-web
       IMAGE_TAG: sha-${{ github.sha }}
 
       NODE_ENV: development
