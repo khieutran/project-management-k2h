@@ -1,4 +1,5 @@
 import type { ProjectStatus } from '../enums/project-status.enum';
+import type { ProjectAccessRole } from '../enums/project-access-role.enum';
 
 export type ProjectOwnerResponse = {
   id: string;
@@ -15,6 +16,7 @@ export type ProjectResponse = {
   endDate: string | null;
   archivedAt: string | null;
   deletedAt: string | null;
+  accessRole: ProjectAccessRole;
   owner: ProjectOwnerResponse;
   createdAt: string;
   updatedAt: string;

@@ -1,5 +1,8 @@
 import { getMetadataArgsStorage } from 'typeorm';
 
+import {
+  ProjectMember,
+} from '../../project-members/entities/project-member.entity';
 import { User } from '../../users/entities/user.entity';
 import { ProjectStatus } from '../enums/project-status.enum';
 import { Project } from './project.entity';
@@ -172,5 +175,18 @@ describe('Project entity', () => {
         type: 'timestamptz',
       },
     });
+  });
+
+  it('exposes project memberships without eager loading or cascading writes', () => {
+    const membersRelation = getMetadataArgsStorage()
+      .filterRelations(Project)
+      .find(({ propertyName }) => propertyName === 'members');
+
+    expect(membersRelation?.relationType).toBe('one-to-many');
+    expect(membersRelation?.options.eager).not.toBe(true);
+    expect(membersRelation?.options.cascade).not.toBe(true);
+
+    const relationTarget = membersRelation?.type as () => unknown;
+    expect(relationTarget()).toBe(ProjectMember);
   });
 });

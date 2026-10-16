@@ -5,10 +5,12 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
+import { ProjectMember } from '../../project-members/entities/project-member.entity';
 import { User } from '../../users/entities/user.entity';
 import { ProjectStatus } from '../enums/project-status.enum';
 
@@ -53,6 +55,9 @@ export class Project {
     foreignKeyConstraintName: 'FK_projects_owner_id',
   })
   owner: User;
+
+  @OneToMany(() => ProjectMember, (membership) => membership.project)
+  members: ProjectMember[];
 
   @Column({
     type: 'enum',

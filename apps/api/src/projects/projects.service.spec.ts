@@ -12,6 +12,8 @@ import {
 } from 'typeorm';
 
 import type { AuthenticatedPrincipal } from '../auth/types/authenticated-principal.type';
+import { ProjectMember } from '../project-members/entities/project-member.entity';
+import { ProjectMemberRole } from '../project-members/enums/project-member-role.enum';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../users/enums/user-role.enum';
 import type { CreateProjectDto } from './dto/create-project.dto';
@@ -21,8 +23,10 @@ import {
   ProjectListView,
 } from './dto/list-projects-query.dto';
 import { Project } from './entities/project.entity';
+import { ProjectAccessRole } from './enums/project-access-role.enum';
 import { ProjectStatus } from './enums/project-status.enum';
 import type { UpdateProjectDto } from './dto/update-project.dto';
+import { ProjectAccessService } from './project-access.service';
 import { ProjectsService } from './projects.service';
 
 describe('ProjectsService', () => {
@@ -47,6 +51,7 @@ describe('ProjectsService', () => {
   };
   let queryBuilder: {
     innerJoinAndSelect: jest.Mock;
+    leftJoinAndSelect: jest.Mock;
     andWhere: jest.Mock;
     withDeleted: jest.Mock;
     orderBy: jest.Mock;
@@ -72,11 +77,16 @@ describe('ProjectsService', () => {
   let dataSource: {
     transaction: jest.Mock;
   };
+  let projectAccessService: {
+    findReadableProjectOrThrow: jest.Mock;
+    resolveAccessRole: jest.Mock;
+  };
   let projectsService: ProjectsService;
 
   beforeEach(() => {
     queryBuilder = {
       innerJoinAndSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       withDeleted: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
@@ -111,9 +121,14 @@ describe('ProjectsService', () => {
       findOne: jest.fn(),
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
     };
+    projectAccessService = {
+      findReadableProjectOrThrow: jest.fn(),
+      resolveAccessRole: jest.fn().mockReturnValue(ProjectAccessRole.Owner),
+    };
     projectsService = new ProjectsService(
       repository as unknown as Repository<Project>,
       dataSource as unknown as DataSource,
+      projectAccessService as unknown as ProjectAccessService,
     );
   });
 
@@ -169,6 +184,7 @@ describe('ProjectsService', () => {
         endDate: input.endDate,
         archivedAt: null,
         deletedAt: null,
+        accessRole: ProjectAccessRole.Owner,
         owner: {
           id: owner.id,
           displayName: owner.displayName,
@@ -286,7 +302,7 @@ describe('ProjectsService', () => {
       });
     }
 
-    it('lists only current projects owned by a USER with pagination metadata', async () => {
+    it('lists current projects owned by or assigned to a USER with pagination metadata', async () => {
       const project = createLoadedProject();
       const query: ListProjectsQueryDto = {
         page: 2,
@@ -303,9 +319,15 @@ describe('ProjectsService', () => {
         'project.owner',
         'owner',
       );
+      expect(queryBuilder.leftJoinAndSelect).toHaveBeenCalledWith(
+        'project.members',
+        'actorMembership',
+        'actorMembership.userId = :actorUserId',
+        { actorUserId: actor.userId },
+      );
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        'project.ownerId = :ownerId',
-        { ownerId: actor.userId },
+        '(project.ownerId = :actorUserId OR actorMembership.userId = :actorUserId)',
+        { actorUserId: actor.userId },
       );
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
         'project.archivedAt IS NULL',
@@ -324,7 +346,83 @@ describe('ProjectsService', () => {
         totalPages: 3,
       });
       expect(result.data).toHaveLength(1);
+      expect(result.data[0]?.accessRole).toBe(ProjectAccessRole.Owner);
       expect(result.data[0]).not.toHaveProperty('ownerId');
+    });
+
+    it('returns owned and member projects once with their effective access roles', async () => {
+      const ownedProject = createLoadedProject();
+      const memberProject = createLoadedProject({
+        id: '33333333-3333-4333-8333-333333333333',
+        key: 'TEAM',
+        ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        members: [
+          Object.assign(new ProjectMember(), {
+            userId: actor.userId,
+            role: ProjectMemberRole.Member,
+          }),
+        ],
+      });
+      const query: ListProjectsQueryDto = {
+        page: 1,
+        limit: 20,
+        view: ProjectListView.Current,
+      };
+
+      queryBuilder.getManyAndCount.mockResolvedValue([
+        [ownedProject, memberProject],
+        2,
+      ]);
+      projectAccessService.resolveAccessRole
+        .mockReturnValueOnce(ProjectAccessRole.Owner)
+        .mockReturnValueOnce(ProjectAccessRole.Member);
+
+      const result = await projectsService.findAll(actor, query);
+
+      expect(result.data.map((project) => project.id)).toEqual([
+        ownedProject.id,
+        memberProject.id,
+      ]);
+      expect(result.data.map((project) => project.accessRole)).toEqual([
+        ProjectAccessRole.Owner,
+        ProjectAccessRole.Member,
+      ]);
+      expect(result.pagination.total).toBe(2);
+    });
+
+    it('preserves an explicit membership role when an ADMIN lists projects', async () => {
+      const adminActor: AuthenticatedPrincipal = {
+        ...actor,
+        role: UserRole.Admin,
+      };
+      const project = createLoadedProject({
+        ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        members: [
+          Object.assign(new ProjectMember(), {
+            userId: adminActor.userId,
+            role: ProjectMemberRole.Manager,
+          }),
+        ],
+      });
+      const query: ListProjectsQueryDto = {
+        page: 1,
+        limit: 20,
+        view: ProjectListView.Current,
+      };
+
+      queryBuilder.getManyAndCount.mockResolvedValue([[project], 1]);
+      projectAccessService.resolveAccessRole.mockReturnValue(
+        ProjectAccessRole.Manager,
+      );
+
+      const result = await projectsService.findAll(adminActor, query);
+
+      expect(result.data[0]?.accessRole).toBe(ProjectAccessRole.Manager);
+      expect(projectAccessService.resolveAccessRole).toHaveBeenCalledWith(
+        adminActor,
+        project,
+        project.members[0],
+      );
     });
 
     it('allows an ADMIN to list archived projects from every owner', async () => {
@@ -343,7 +441,7 @@ describe('ProjectsService', () => {
       await projectsService.findAll(adminActor, query);
 
       expect(queryBuilder.andWhere).not.toHaveBeenCalledWith(
-        'project.ownerId = :ownerId',
+        expect.stringContaining('project.ownerId'),
         expect.anything(),
       );
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
@@ -425,47 +523,66 @@ describe('ProjectsService', () => {
   });
 
   describe('findOne', () => {
-    it('scopes a USER detail query by ownership', async () => {
+    it('returns an owner project with OWNER access', async () => {
       const project = createProjectFixture();
 
-      queryBuilder.getOne.mockResolvedValue(project);
+      projectAccessService.findReadableProjectOrThrow.mockResolvedValue({
+        project,
+        accessRole: ProjectAccessRole.Owner,
+      });
 
       const result = await projectsService.findOne(actor, project.id, {
         includeDeleted: false,
       });
 
-      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        'project.id = :projectId',
-        { projectId: project.id },
-      );
-      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        'project.ownerId = :ownerId',
-        { ownerId: actor.userId },
-      );
-      expect(queryBuilder.withDeleted).not.toHaveBeenCalled();
+      expect(
+        projectAccessService.findReadableProjectOrThrow,
+      ).toHaveBeenCalledWith(actor, project.id, {
+        includeDeleted: false,
+      });
       expect(result.id).toBe(project.id);
+      expect(result.accessRole).toBe(ProjectAccessRole.Owner);
     });
 
-    it('allows an ADMIN to read another owner project', async () => {
+    it('allows a member to read project detail with MEMBER access', async () => {
+      const project = createProjectFixture({
+        ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      });
+
+      projectAccessService.findReadableProjectOrThrow.mockResolvedValue({
+        project,
+        accessRole: ProjectAccessRole.Member,
+      });
+
+      const result = await projectsService.findOne(actor, project.id, {
+        includeDeleted: false,
+      });
+
+      expect(result.accessRole).toBe(ProjectAccessRole.Member);
+    });
+
+    it('allows an ADMIN to read another owner project as ADMIN_VIEWER', async () => {
       const adminActor = { ...actor, role: UserRole.Admin };
       const project = createProjectFixture({
         ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       });
 
-      queryBuilder.getOne.mockResolvedValue(project);
+      projectAccessService.findReadableProjectOrThrow.mockResolvedValue({
+        project,
+        accessRole: ProjectAccessRole.AdminViewer,
+      });
 
-      await projectsService.findOne(adminActor, project.id, {
+      const result = await projectsService.findOne(adminActor, project.id, {
         includeDeleted: false,
       });
 
-      expect(queryBuilder.andWhere).not.toHaveBeenCalledWith(
-        'project.ownerId = :ownerId',
-        expect.anything(),
-      );
+      expect(result.accessRole).toBe(ProjectAccessRole.AdminViewer);
     });
 
     it('returns the same not-found error for missing and out-of-scope projects', async () => {
-      queryBuilder.getOne.mockResolvedValue(null);
+      projectAccessService.findReadableProjectOrThrow.mockRejectedValue(
+        new NotFoundException(),
+      );
 
       await expect(
         projectsService.findOne(actor, '22222222-2222-4222-8222-222222222222', {
@@ -480,7 +597,12 @@ describe('ProjectsService', () => {
       });
       const adminActor = { ...actor, role: UserRole.Admin };
 
-      queryBuilder.getOne.mockResolvedValue(project);
+      projectAccessService.findReadableProjectOrThrow
+        .mockRejectedValueOnce(new ForbiddenException())
+        .mockResolvedValueOnce({
+          project,
+          accessRole: ProjectAccessRole.AdminViewer,
+        });
 
       await expect(
         projectsService.findOne(actor, project.id, { includeDeleted: true }),
@@ -490,7 +612,11 @@ describe('ProjectsService', () => {
         includeDeleted: true,
       });
 
-      expect(queryBuilder.withDeleted).toHaveBeenCalledTimes(1);
+      expect(
+        projectAccessService.findReadableProjectOrThrow,
+      ).toHaveBeenLastCalledWith(adminActor, project.id, {
+        includeDeleted: true,
+      });
       expect(result.deletedAt).toBe('2026-11-01T00:00:00.000Z');
     });
   });
@@ -534,6 +660,17 @@ describe('ProjectsService', () => {
       await expect(
         projectsService.update(actor, project.id, { name: 'Blocked update' }),
       ).rejects.toBeInstanceOf(ConflictException);
+      expect(transactionRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('does not allow a project member to update an owner-scoped project', async () => {
+      const projectId = '22222222-2222-4222-8222-222222222222';
+
+      transactionQueryBuilder.getOne.mockResolvedValue(null);
+
+      await expect(
+        projectsService.update(actor, projectId, { name: 'Blocked update' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
       expect(transactionRepository.save).not.toHaveBeenCalled();
     });
 

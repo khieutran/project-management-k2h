@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
@@ -31,6 +33,12 @@ describe('Project management (e2e)', () => {
   function nextClientIp(): string {
     clientSequence += 1;
     return `203.0.113.${clientSequence}`;
+  }
+
+  function uniqueProjectKey(prefix: string): string {
+    const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase();
+
+    return `${prefix}${suffix}`.slice(0, 10);
   }
 
   function authorized(token: string) {
@@ -99,7 +107,7 @@ describe('Project management (e2e)', () => {
     await dataSource.getRepository(User).delete({ id: In(userIds) });
   }
 
-  async function createOwnerProject(key = 'K2H') {
+  async function createOwnerProject(key: string) {
     return authorized(ownerToken)
       .post('/api/projects')
       .send({
@@ -157,10 +165,11 @@ describe('Project management (e2e)', () => {
   });
 
   it('runs the owner CRUD, lifecycle, archive, restore, and delete flow', async () => {
+    const projectKey = uniqueProjectKey('K2H');
     const createResponse = await authorized(ownerToken)
       .post('/api/projects')
       .send({
-        key: '  k2h  ',
+        key: `  ${projectKey.toLowerCase()}  `,
         name: '  Project Management K2H  ',
         startDate: '2026-10-15',
         endDate: '2027-03-31',
@@ -168,7 +177,7 @@ describe('Project management (e2e)', () => {
       .expect(201);
 
     expect(createResponse.body).toMatchObject({
-      key: 'K2H',
+      key: projectKey,
       name: 'Project Management K2H',
       status: ProjectStatus.Planning,
       owner: { displayName: 'Project Owner' },
@@ -178,7 +187,7 @@ describe('Project management (e2e)', () => {
     const projectId = createResponse.body.id as string;
 
     const listResponse = await authorized(ownerToken)
-      .get('/api/projects?page=1&limit=20&search=K2H')
+      .get(`/api/projects?page=1&limit=20&search=${projectKey}`)
       .expect(200);
 
     expect(listResponse.body.pagination).toEqual({
@@ -249,11 +258,12 @@ describe('Project management (e2e)', () => {
   });
 
   it('maps duplicate project keys to a sanitized conflict', async () => {
-    await createOwnerProject('DUP');
+    const projectKey = uniqueProjectKey('DUP');
+    await createOwnerProject(projectKey);
 
     const response = await authorized(otherToken)
       .post('/api/projects')
-      .send({ key: 'DUP', name: 'Duplicate key project' })
+      .send({ key: projectKey, name: 'Duplicate key project' })
       .expect(409);
 
     expect(response.body).toMatchObject({
@@ -264,7 +274,8 @@ describe('Project management (e2e)', () => {
   });
 
   it('isolates USER reads while allowing global ADMIN reads', async () => {
-    const createResponse = await createOwnerProject('ACL');
+    const projectKey = uniqueProjectKey('ACL');
+    const createResponse = await createOwnerProject(projectKey);
     const projectId = createResponse.body.id as string;
 
     const otherList = await authorized(otherToken)
@@ -281,7 +292,7 @@ describe('Project management (e2e)', () => {
 
     expect(adminList.body.data).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: projectId, key: 'ACL' }),
+        expect.objectContaining({ id: projectId, key: projectKey }),
       ]),
     );
 
@@ -294,9 +305,10 @@ describe('Project management (e2e)', () => {
   });
 
   it('allows an ADMIN to mutate a project that the ADMIN owns', async () => {
+    const projectKey = uniqueProjectKey('ADM');
     const createResponse = await authorized(adminToken)
       .post('/api/projects')
-      .send({ key: 'ADM', name: 'Admin owned project' })
+      .send({ key: projectKey, name: 'Admin owned project' })
       .expect(201);
 
     const projectId = createResponse.body.id as string;

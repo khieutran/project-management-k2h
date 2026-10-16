@@ -15,4 +15,6 @@ export const projectQueryKeys = {
       projectId,
       { includeDeleted },
     ] as const,
+  members: (actorUserId: string, projectId: string) =>
+    [...projectQueryKeys.all(actorUserId), 'members', projectId] as const,
 };

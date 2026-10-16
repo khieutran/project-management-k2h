@@ -10,16 +10,50 @@ function CacheProbe() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    queryClient.setQueryData(['projects', 'user-1'], ['private-project']);
+    queryClient.setQueryData(
+      ['projects', 'user-1', 'list', { view: 'current' }],
+      ['private-project'],
+    );
+    queryClient.setQueryData(
+      ['projects', 'user-1', 'detail', 'project-1'],
+      { id: 'project-1' },
+    );
+    queryClient.setQueryData(
+      ['projects', 'user-1', 'members', 'project-1'],
+      ['private-member'],
+    );
+    queryClient.setQueryData(['health'], { status: 'ok' });
   }, [queryClient]);
 
   return (
     <button
       type="button"
       onClick={() => {
-        screen.getByTestId('cache').textContent = String(
-          queryClient.getQueryData(['projects', 'user-1']),
-        );
+        const oldList = queryClient.getQueryData([
+          'projects',
+          'user-1',
+          'list',
+          { view: 'current' },
+        ]);
+        const oldDetail = queryClient.getQueryData([
+          'projects',
+          'user-1',
+          'detail',
+          'project-1',
+        ]);
+        const oldMembers = queryClient.getQueryData([
+          'projects',
+          'user-1',
+          'members',
+          'project-1',
+        ]);
+        const publicHealth = queryClient.getQueryData(['health']);
+        screen.getByTestId('cache').textContent = JSON.stringify({
+          oldList,
+          oldDetail,
+          oldMembers,
+          publicHealth,
+        });
       }}
     >
       Read cache
@@ -71,6 +105,10 @@ describe('AuthenticatedQueryBoundary', () => {
       screen.getByRole('button', { name: 'Read cache' }).click();
     });
 
-    await waitFor(() => expect(screen.getByTestId('cache')).toHaveTextContent('undefined'));
+    await waitFor(() =>
+      expect(screen.getByTestId('cache')).toHaveTextContent(
+        '{"publicHealth":{"status":"ok"}}',
+      ),
+    );
   });
 });

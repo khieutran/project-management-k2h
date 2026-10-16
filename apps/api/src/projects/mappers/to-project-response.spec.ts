@@ -1,6 +1,7 @@
 import { User } from '../../users/entities/user.entity';
 import { UserRole } from '../../users/enums/user-role.enum';
 import { Project } from '../entities/project.entity';
+import { ProjectAccessRole } from '../enums/project-access-role.enum';
 import { ProjectStatus } from '../enums/project-status.enum';
 import { toProjectResponse } from './to-project-response';
 
@@ -32,7 +33,7 @@ describe('toProjectResponse', () => {
       updatedAt: new Date('2026-10-16T11:30:00.000Z'),
     });
 
-    const result = toProjectResponse(project);
+    const result = toProjectResponse(project, ProjectAccessRole.Owner);
 
     expect(result).toEqual({
       id: '22222222-2222-4222-8222-222222222222',
@@ -44,6 +45,7 @@ describe('toProjectResponse', () => {
       endDate: '2027-03-31',
       archivedAt: null,
       deletedAt: null,
+      accessRole: ProjectAccessRole.Owner,
       owner: {
         id: '11111111-1111-4111-8111-111111111111',
         displayName: 'Nguyen Van A',
@@ -78,10 +80,11 @@ describe('toProjectResponse', () => {
       updatedAt: new Date('2026-12-02T09:00:00.000Z'),
     });
 
-    const result = toProjectResponse(project);
+    const result = toProjectResponse(project, ProjectAccessRole.AdminViewer);
 
     expect(result.archivedAt).toBe('2026-12-01T08:00:00.000Z');
     expect(result.deletedAt).toBe('2026-12-02T09:00:00.000Z');
+    expect(result.accessRole).toBe(ProjectAccessRole.AdminViewer);
   });
 
   it('throws when the query did not load the project owner', () => {
@@ -89,7 +92,7 @@ describe('toProjectResponse', () => {
       owner: undefined,
     });
 
-    expect(() => toProjectResponse(project)).toThrow(
+    expect(() => toProjectResponse(project, ProjectAccessRole.Owner)).toThrow(
       'Project owner must be loaded before mapping the response',
     );
   });

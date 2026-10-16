@@ -8,24 +8,26 @@ Chức năng hiện hỗ trợ:
 
 - người dùng đã đăng nhập tạo project và trở thành owner;
 - owner xem, cập nhật, chuyển trạng thái, lưu trữ, khôi phục và xóa mềm project của mình;
-- người dùng thường không xem được project của người khác;
+- owner thêm tài khoản đã đăng ký, đổi role hoặc xóa thành viên khỏi project;
+- thành viên xem project, xem danh sách thành viên và tự rời project;
+- người dùng không thuộc project không xem được project;
 - ADMIN xem được toàn bộ project, bao gồm danh sách đã xóa;
-- ADMIN không được cập nhật hoặc xóa project của người khác;
-- Web có danh sách, tìm kiếm, lọc, phân trang, tạo, chi tiết và chỉnh sửa project.
+- ADMIN không được cập nhật project hoặc membership của người khác;
+- Web có danh sách, tìm kiếm, lọc, phân trang, tạo, chi tiết, chỉnh sửa project và quản lý thành viên.
 
-Mời thành viên vào project, phân quyền thành viên, quản lý task và xóa vĩnh viễn chưa thuộc phạm vi hiện tại.
+Tìm kiếm người dùng, gửi lời mời chờ chấp nhận, quản lý task và xóa vĩnh viễn chưa thuộc phạm vi hiện tại. Owner thêm trực tiếp tài khoản đã đăng ký bằng email chính xác.
 
 ## Quyền truy cập
 
-| Hành động | Owner | User khác | ADMIN không phải owner |
-| --- | --- | --- | --- |
-| Tạo project | Có | Có | Có |
-| Xem project | Có | Không | Có |
-| Xem danh sách đã xóa | Không | Không | Có |
-| Cập nhật thông tin | Có | Không | Không |
-| Chuyển trạng thái | Có | Không | Không |
-| Archive/restore | Có | Không | Không |
-| Xóa mềm | Có | Không | Không |
+| Hành động | Owner | Manager/Member | User ngoài project | ADMIN không phải owner |
+| --- | --- | --- | --- | --- |
+| Tạo project | Có | Có | Có | Có |
+| Xem project và thành viên | Có | Có | Không | Có |
+| Xem danh sách đã xóa | Không | Không | Không | Có |
+| Cập nhật project/lifecycle | Có | Không | Không | Không |
+| Archive/restore/xóa mềm | Có | Không | Không | Không |
+| Thêm, đổi role, xóa thành viên | Có | Không | Không | Không |
+| Tự rời project | Không | Có | Không | Không |
 
 Frontend ẩn action không hợp lệ để hỗ trợ trải nghiệm người dùng. Backend vẫn là authority cuối cùng và luôn kiểm tra quyền owner; không xem việc ẩn button là một biện pháp authorization.
 
@@ -77,6 +79,7 @@ Migration tạo bảng project:
 
 ```text
 apps/api/src/database/migrations/1792022400000-CreateProjects.ts
+apps/api/src/database/migrations/1792108800000-CreateProjectMembers.ts
 ```
 
 Trước khi chạy ứng dụng:
@@ -104,6 +107,11 @@ Mọi endpoint dưới đây cần access token hợp lệ:
 | `POST` | `/api/projects/:projectId/archive` | Owner archive |
 | `POST` | `/api/projects/:projectId/restore` | Owner restore |
 | `DELETE` | `/api/projects/:projectId` | Owner xóa mềm |
+| `GET` | `/api/projects/:projectId/members` | Actor có read scope xem owner và thành viên |
+| `POST` | `/api/projects/:projectId/members` | Owner thêm tài khoản đã đăng ký |
+| `PATCH` | `/api/projects/:projectId/members/:userId` | Owner đổi role thành viên |
+| `DELETE` | `/api/projects/:projectId/members/:userId` | Owner xóa thành viên |
+| `DELETE` | `/api/projects/:projectId/members/me` | Thành viên tự rời project |
 
 Query của endpoint danh sách:
 
@@ -132,6 +140,10 @@ Không ghi access token vào tài liệu, log, issue hoặc ảnh chụp màn h�
 - `startDate`, `endDate` dùng định dạng `YYYY-MM-DD` và có thể là `null`.
 - `endDate` không được trước `startDate`.
 - Response chỉ trả owner an toàn gồm `id` và `displayName`.
+- Membership chỉ nhận role `MANAGER` hoặc `MEMBER`; owner không nằm trong bảng `project_members`.
+- Email khi thêm thành viên được trim, lowercase và phải khớp một tài khoản đã đăng ký.
+- Một user chỉ có một membership trong mỗi project.
+- Archive hoặc soft delete project khóa mọi mutation membership nhưng vẫn giữ dữ liệu để đọc theo scope.
 
 Validation trên Web giúp phản hồi sớm cho người dùng nhưng không thay thế validation của API.
 
@@ -146,6 +158,21 @@ Validation trên Web giúp phản hồi sớm cho người dùng nhưng không t
 7. Restore project và xác nhận project trở lại tab `Hiện tại`.
 8. Xóa project bằng dialog xác nhận thông thường.
 9. Xác nhận owner không còn đọc được project đã xóa.
+
+## Smoke test membership
+
+Dùng bốn tài khoản DEV riêng: owner, member, user ngoài project và ADMIN.
+
+1. Owner tạo project rồi thêm member bằng email với role `MEMBER`.
+2. Xác nhận member thấy project, xem được danh sách thành viên nhưng không thấy action quản lý.
+3. Owner đổi role member thành `MANAGER`, reload và xác nhận role mới.
+4. Member tự rời project; xác nhận project biến mất và truy cập URL cũ trả `404`.
+5. Owner thêm lại member rồi xóa member; xác nhận quyền đọc bị thu hồi ngay.
+6. User ngoài project không thấy project và nhận `404` khi truy cập trực tiếp.
+7. ADMIN xem được project và danh sách thành viên nhưng không thấy action thêm, đổi role, xóa hoặc rời project.
+8. Archive project và xác nhận danh sách membership vẫn đọc được nhưng mọi mutation trả `409 PROJECT_MEMBERSHIP_LOCKED`.
+
+Không dùng endpoint membership như API tìm kiếm tài khoản. Response lỗi khi email không tồn tại phải giữ contract an toàn, không đưa password hash, token hoặc dữ liệu riêng tư vào log.
 
 ## Smoke test scope và ADMIN
 
@@ -182,6 +209,8 @@ Các nguyên nhân thường gặp:
 - khoảng ngày không hợp lệ;
 - lifecycle transition không hợp lệ;
 - project đang archive nên không thể chỉnh sửa hoặc chuyển trạng thái.
+- membership đã tồn tại;
+- project đã archive hoặc xóa nên membership bị khóa.
 
 Sửa input hoặc restore project trước; không bỏ qua business rule ở frontend.
 
@@ -207,5 +236,5 @@ Chỉ merge khi toàn bộ lệnh thành công và CI của pull request xanh.
 
 Deploy engine chạy migration trước khi thay API và Web. Nếu candidate application không healthy, engine rollback application images nhưng không tự động revert migration.
 
-Migration project hiện tại chỉ thêm schema và được thiết kế để release cũ vẫn hoạt động. Không chạy `migration:revert`, không xóa bảng project và không xóa PostgreSQL volume chỉ để rollback UI/API. Xem quy trình đầy đủ tại [runbook triển khai DEV](dev-deployment.md#giới-hạn-rollback-database).
+Migration project và membership chỉ thêm schema và được thiết kế để release cũ vẫn hoạt động. Không chạy `migration:revert`, không xóa bảng `projects`/`project_members` và không xóa PostgreSQL volume chỉ để rollback UI/API. Xem quy trình đầy đủ tại [runbook triển khai DEV](dev-deployment.md#giới-hạn-rollback-database).
 

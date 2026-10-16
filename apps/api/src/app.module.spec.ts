@@ -2,6 +2,7 @@ import { MODULE_METADATA } from '@nestjs/common/constants';
 
 import { AuthModule } from './auth/auth.module';
 import { AppModule } from './app.module';
+import { ProjectMembersModule } from './project-members/project-members.module';
 import { ProjectsModule } from './projects/projects.module';
 
 describe('AppModule', () => {
@@ -17,5 +18,6 @@ describe('AppModule', () => {
       unknown[] | undefined;
 
     expect(imports).toContain(ProjectsModule);
+    expect(imports).toContain(ProjectMembersModule);
   });
 });

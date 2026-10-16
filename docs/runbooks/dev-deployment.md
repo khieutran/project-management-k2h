@@ -531,16 +531,21 @@ Sau khi health check xanh:
 
 1. Thực hiện Auth smoke test theo [runbook authentication](authentication.md).
 2. Thực hiện owner, cross-user, ADMIN và cache-isolation smoke test theo [runbook quản lý dự án](project-management.md#smoke-test-owner).
-3. Xác nhận migration `CreateProjects` đã được ghi nhận và API không báo `relation "projects" does not exist`.
+3. Thực hiện add/change-role/remove/leave, read scope và locked-project smoke test theo [runbook quản lý dự án](project-management.md#smoke-test-membership).
+4. Xác nhận migrations `CreateProjects` và `CreateProjectMembers` đã được ghi nhận; API không báo thiếu bảng `projects` hoặc `project_members`.
 
 Dùng tài khoản test riêng của DEV và không ghi password, cookie hoặc token vào workflow log, issue hay pull request.
 
-### Tiêu chí nghiệm thu Phase 2 trên DEV
+### Tiêu chí nghiệm thu Phase 2 và Phase 3 trên DEV
 
 - Owner tạo, xem, sửa, chuyển trạng thái, archive, restore và xóa project thành công.
 - User khác không thấy và không đọc được project của owner.
 - ADMIN thấy project của mọi owner và tab đã xóa nhưng không mutate project người khác.
 - Logout rồi đăng nhập actor khác không hiển thị project cache của actor trước.
+- Owner thêm, đổi role và xóa thành viên thành công.
+- Member xem được project, xem danh sách thành viên và tự rời project; quyền truy cập bị thu hồi ngay sau khi leave/remove.
+- User ngoài project nhận `404`; ADMIN chỉ xem và không mutate membership.
+- Project archive/deleted không cho phép thay đổi membership.
 - `DEPLOYED_SHA`, `current-release` và tag của hai GHCR images cùng một full commit SHA.
 
 Nếu smoke test application thất bại sau khi migration đã thành công, giữ nguyên database schema, thu thập SHA/log an toàn và rollback application theo phần trên. Không chạy `migration:revert` như một phản xạ xử lý sự cố.
