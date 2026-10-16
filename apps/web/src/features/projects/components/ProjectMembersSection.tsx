@@ -1,12 +1,66 @@
+import { useState } from 'react';
+
+import { useProjectMemberMutations } from '../hooks/use-project-member-mutations';
 import { useProjectMembers } from '../hooks/use-project-members';
-import type { Project } from '../project.types';
+import { getProjectErrorMessage } from '../project-error-message';
+import type {
+  AddProjectMemberInput,
+  Project,
+  ProjectMember,
+  ProjectMemberRole,
+} from '../project.types';
+import { AddProjectMemberForm } from './AddProjectMemberForm';
 import { ProjectMemberRow } from './ProjectMemberRow';
+import { RemoveProjectMemberDialog } from './RemoveProjectMemberDialog';
 
 export function ProjectMembersSection({ project }: { project: Project }) {
   const membersQuery = useProjectMembers(project.id);
+  const mutations = useProjectMemberMutations();
+  const [memberToRemove, setMemberToRemove] = useState<ProjectMember>();
+  const [mutationError, setMutationError] = useState<string>();
   const isReadOnly =
     project.accessRole === 'ADMIN_VIEWER' ||
     Boolean(project.archivedAt || project.deletedAt);
+  const canManage = project.accessRole === 'OWNER' && !isReadOnly;
+
+  async function addMember(input: AddProjectMemberInput): Promise<void> {
+    await mutations.addMember.mutateAsync({ projectId: project.id, input });
+  }
+
+  async function changeMemberRole(
+    member: ProjectMember,
+    role: ProjectMemberRole,
+  ) {
+    setMutationError(undefined);
+
+    try {
+      await mutations.changeMemberRole.mutateAsync({
+        projectId: project.id,
+        userId: member.user.id,
+        input: { role },
+      });
+    } catch (error) {
+      setMutationError(getProjectErrorMessage(error));
+    }
+  }
+
+  async function removeMember() {
+    if (!memberToRemove) {
+      return;
+    }
+
+    setMutationError(undefined);
+
+    try {
+      await mutations.removeMember.mutateAsync({
+        projectId: project.id,
+        userId: memberToRemove.user.id,
+      });
+      setMemberToRemove(undefined);
+    } catch (error) {
+      setMutationError(getProjectErrorMessage(error));
+    }
+  }
 
   return (
     <section className="project-members" aria-labelledby="project-members-title">
@@ -20,6 +74,14 @@ export function ProjectMembersSection({ project }: { project: Project }) {
       {isReadOnly ? (
         <p className="readonly-note">
           Danh sách thành viên đang ở chế độ chỉ xem.
+        </p>
+      ) : null}
+
+      {canManage ? <AddProjectMemberForm onSubmit={addMember} /> : null}
+
+      {mutationError ? (
+        <p className="form-alert" role="alert">
+          {mutationError}
         </p>
       ) : null}
 
@@ -47,9 +109,28 @@ export function ProjectMembersSection({ project }: { project: Project }) {
       {membersQuery.data && membersQuery.data.data.length > 0 ? (
         <ul className="project-member-list" aria-label="Thành viên dự án">
           {membersQuery.data.data.map((member) => (
-            <ProjectMemberRow key={member.user.id} member={member} />
+            <ProjectMemberRow
+              key={member.user.id}
+              member={member}
+              canManage={canManage}
+              isPending={
+                mutations.changeMemberRole.isPending ||
+                mutations.removeMember.isPending
+              }
+              onChangeRole={(role) => void changeMemberRole(member, role)}
+              onRequestRemove={() => setMemberToRemove(member)}
+            />
           ))}
         </ul>
+      ) : null}
+
+      {memberToRemove ? (
+        <RemoveProjectMemberDialog
+          member={memberToRemove}
+          isPending={mutations.removeMember.isPending}
+          onCancel={() => setMemberToRemove(undefined)}
+          onConfirm={() => void removeMember()}
+        />
       ) : null}
     </section>
   );

@@ -11,6 +11,14 @@ vi.mock('../hooks/use-projects', () => ({ useProject: vi.fn() }));
 vi.mock('../hooks/use-project-members', () => ({
   useProjectMembers: vi.fn(),
 }));
+vi.mock('../hooks/use-project-member-mutations', () => ({
+  useProjectMemberMutations: () => ({
+    addMember: { mutateAsync: vi.fn(), isPending: false },
+    changeMemberRole: { mutateAsync: vi.fn(), isPending: false },
+    removeMember: { mutateAsync: vi.fn(), isPending: false },
+    leaveProject: { mutateAsync: vi.fn(), isPending: false },
+  }),
+}));
 vi.mock('../hooks/use-project-mutations', () => ({
   useProjectMutations: () => ({
     changeStatus: { mutateAsync: vi.fn(), isPending: false },

@@ -1,13 +1,17 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { useProjectMemberMutations } from '../hooks/use-project-member-mutations';
 import { useProjectMembers } from '../hooks/use-project-members';
 import type { Project } from '../project.types';
 import { ProjectMembersSection } from './ProjectMembersSection';
 
 vi.mock('../hooks/use-project-members', () => ({
   useProjectMembers: vi.fn(),
+}));
+vi.mock('../hooks/use-project-member-mutations', () => ({
+  useProjectMemberMutations: vi.fn(),
 }));
 
 const project: Project = {
@@ -26,7 +30,24 @@ const project: Project = {
   updatedAt: '2026-10-16T00:00:00.000Z',
 };
 
+function createMutationResult() {
+  return {
+    addMember: { mutateAsync: vi.fn(), isPending: false },
+    changeMemberRole: { mutateAsync: vi.fn(), isPending: false },
+    removeMember: { mutateAsync: vi.fn(), isPending: false },
+    leaveProject: { mutateAsync: vi.fn(), isPending: false },
+  };
+}
+
 describe('ProjectMembersSection', () => {
+  beforeEach(() => {
+    vi.mocked(useProjectMemberMutations).mockReturnValue(
+      createMutationResult() as unknown as ReturnType<
+        typeof useProjectMemberMutations
+      >,
+    );
+  });
+
   it('shows a loading state while members are being fetched', () => {
     vi.mocked(useProjectMembers).mockReturnValue({
       isPending: true,
@@ -140,5 +161,99 @@ describe('ProjectMembersSection', () => {
     expect(
       screen.getByText('Danh sách thành viên đang ở chế độ chỉ xem.'),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Thêm thành viên' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('lets the owner change a member role', async () => {
+    const mutations = createMutationResult();
+    mutations.changeMemberRole.mutateAsync.mockResolvedValue(undefined);
+    vi.mocked(useProjectMemberMutations).mockReturnValue(
+      mutations as unknown as ReturnType<typeof useProjectMemberMutations>,
+    );
+    vi.mocked(useProjectMembers).mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: {
+        data: [
+          {
+            user: {
+              id: 'owner-1',
+              email: 'owner@example.com',
+              displayName: 'Văn Khiếu Trần',
+            },
+            role: 'OWNER',
+            joinedAt: null,
+          },
+          {
+            user: {
+              id: 'member-1',
+              email: 'member@example.com',
+              displayName: 'Hoàng Hào',
+            },
+            role: 'MEMBER',
+            joinedAt: '2026-10-16T01:00:00.000Z',
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof useProjectMembers>);
+
+    render(<ProjectMembersSection project={project} />);
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: 'Vai trò của Hoàng Hào' }),
+      'MANAGER',
+    );
+
+    expect(mutations.changeMemberRole.mutateAsync).toHaveBeenCalledWith({
+      projectId: 'project-1',
+      userId: 'member-1',
+      input: { role: 'MANAGER' },
+    });
+  });
+
+  it('removes a member only after normal confirmation', async () => {
+    const mutations = createMutationResult();
+    mutations.removeMember.mutateAsync.mockResolvedValue(undefined);
+    vi.mocked(useProjectMemberMutations).mockReturnValue(
+      mutations as unknown as ReturnType<typeof useProjectMemberMutations>,
+    );
+    vi.mocked(useProjectMembers).mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: {
+        data: [
+          {
+            user: {
+              id: 'member-1',
+              email: 'member@example.com',
+              displayName: 'Hoàng Hào',
+            },
+            role: 'MEMBER',
+            joinedAt: '2026-10-16T01:00:00.000Z',
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof useProjectMembers>);
+
+    render(<ProjectMembersSection project={project} />);
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Xóa Hoàng Hào' }),
+    );
+
+    expect(screen.getByRole('dialog')).toHaveTextContent(
+      'Xóa Hoàng Hào khỏi dự án?',
+    );
+    expect(mutations.removeMember.mutateAsync).not.toHaveBeenCalled();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Xóa thành viên' }),
+    );
+
+    expect(mutations.removeMember.mutateAsync).toHaveBeenCalledWith({
+      projectId: 'project-1',
+      userId: 'member-1',
+    });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
