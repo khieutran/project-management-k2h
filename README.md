@@ -10,7 +10,7 @@ Hệ thống quản lý dự án của nhóm K2H, được tổ chức theo mô 
 - CI chạy tự động bằng GitHub Actions khi tạo pull request.
 - CD tự động build, publish và triển khai DEV khi có thay đổi trên branch `dev`.
 
-> Dự án đang ở giai đoạn xây dựng nền móng. Môi trường DEV đã có CI/CD tự động; production và các tính năng nghiệp vụ sẽ được thiết kế ở các giai đoạn tiếp theo.
+> Dự án đã có nền móng, authentication, quản lý project và project membership. Môi trường DEV có CI/CD tự động; production và quản lý công việc sẽ được thiết kế ở các giai đoạn tiếp theo.
 
 ## Công nghệ chính
 
@@ -222,7 +222,7 @@ Các route Web:
 | `/` | Authenticated | Home xác nhận phiên và hiển thị safe user |
 | `/projects` | Authenticated | Danh sách project theo quyền của người dùng |
 | `/projects/new` | Authenticated | Tạo project mới |
-| `/projects/:projectId` | Owner hoặc ADMIN | Chi tiết project |
+| `/projects/:projectId` | Owner, member hoặc ADMIN | Chi tiết project và thành viên |
 | `/projects/:projectId/edit` | Owner | Chỉnh sửa project |
 
 Kiểm tra thủ công:
@@ -242,6 +242,8 @@ Xem contract, xử lý sự cố và smoke test tại [runbook authentication](d
 Mỗi người dùng đã đăng nhập có thể tạo project và trở thành owner. Owner có quyền cập nhật, chuyển trạng thái, archive, restore và xóa mềm project của mình.
 
 ADMIN có read scope toàn hệ thống để xem project của mọi owner và danh sách đã xóa. ADMIN không tự động có quyền mutate project của người khác.
+
+Owner có thể thêm một tài khoản đã đăng ký vào project bằng email, đổi role giữa `MANAGER` và `MEMBER`, hoặc xóa thành viên. Thành viên có thể xem project, danh sách thành viên và tự rời project; ADMIN chỉ được xem membership. Project đã archive hoặc xóa không cho phép thay đổi membership.
 
 Vòng đời project:
 
@@ -517,11 +519,12 @@ Foundation hiện đã cung cấp:
 - JWT authentication, role guard, rate limiting và error contract an toàn.
 - React AuthProvider, protected routes và giao diện Login/Register/Home.
 - Project API với owner scope, ADMIN read-only toàn hệ thống và soft delete.
-- React UI cho danh sách, tìm kiếm, lọc, phân trang, tạo, chi tiết và chỉnh sửa project.
+- Project membership với role `MANAGER`/`MEMBER`, owner quản lý thành viên, member tự rời project và ADMIN read-only.
+- React UI cho danh sách, tìm kiếm, lọc, phân trang, tạo, chi tiết, chỉnh sửa project và quản lý thành viên.
 - TanStack Query cache được cô lập theo authenticated actor.
 
 Các phần chưa thuộc phạm vi hiện tại:
 
-- Trang quản trị người dùng, project membership và quản lý công việc.
+- Trang quản trị người dùng và quản lý công việc.
 - Hạ tầng production, backup và disaster recovery.
 - Monitoring, logging tập trung và cảnh báo production.
