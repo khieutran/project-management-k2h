@@ -102,8 +102,8 @@ Workflow sử dụng `GITHUB_TOKEN` do GitHub Actions cấp:
 Các image DEV:
 
 ```text
-ghcr.io/tvkhieu1998/project-management-k2h-api
-ghcr.io/tvkhieu1998/project-management-k2h-web
+ghcr.io/khieutran/project-management-k2h-api
+ghcr.io/khieutran/project-management-k2h-web
 ```
 
 Mỗi release dùng immutable tag `sha-<full-40-character-commit-sha>`. Không sử dụng tag `latest`.
