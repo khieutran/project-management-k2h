@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { projectQueryKeys } from '../project-query-keys';
 import { createProjectsApi } from './projects-api';
 
 describe('projectsApi', () => {
@@ -43,5 +44,17 @@ describe('projectsApi', () => {
       headers: { 'Content-Type': 'application/json' },
       method: 'PATCH',
     });
+  });
+
+  it('scopes member query keys by authenticated actor and project', () => {
+    expect(projectQueryKeys.members('actor-1', 'project-1')).toEqual([
+      'projects',
+      'actor-1',
+      'members',
+      'project-1',
+    ]);
+    expect(projectQueryKeys.members('actor-2', 'project-1')).not.toEqual(
+      projectQueryKeys.members('actor-1', 'project-1'),
+    );
   });
 });

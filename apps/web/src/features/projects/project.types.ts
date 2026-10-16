@@ -1,5 +1,11 @@
 export type ProjectStatus = 'PLANNING' | 'ACTIVE' | 'COMPLETED';
 export type ProjectListView = 'current' | 'archived' | 'deleted';
+export type ProjectAccessRole =
+  | 'OWNER'
+  | 'MANAGER'
+  | 'MEMBER'
+  | 'ADMIN_VIEWER';
+export type ProjectMemberRole = 'MANAGER' | 'MEMBER';
 
 export type ProjectOwner = {
   id: string;
@@ -16,6 +22,7 @@ export type Project = {
   endDate: string | null;
   archivedAt: string | null;
   deletedAt: string | null;
+  accessRole: ProjectAccessRole;
   owner: ProjectOwner;
   createdAt: string;
   updatedAt: string;
@@ -48,3 +55,28 @@ export type CreateProjectInput = {
 };
 
 export type UpdateProjectInput = Omit<CreateProjectInput, 'key'>;
+
+export type ProjectMemberUser = {
+  id: string;
+  email: string;
+  displayName: string;
+};
+
+export type ProjectMember = {
+  user: ProjectMemberUser;
+  role: ProjectMemberRole | 'OWNER';
+  joinedAt: string | null;
+};
+
+export type ProjectMembersResponse = {
+  data: ProjectMember[];
+};
+
+export type AddProjectMemberInput = {
+  email: string;
+  role: ProjectMemberRole;
+};
+
+export type ChangeProjectMemberRoleInput = {
+  role: ProjectMemberRole;
+};
