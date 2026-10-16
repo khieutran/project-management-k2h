@@ -1,7 +1,9 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApiError } from '../../../api/api-error';
 import { useProjectMemberMutations } from '../hooks/use-project-member-mutations';
 import { useProjectMembers } from '../hooks/use-project-members';
 import type { Project } from '../project.types';
@@ -39,6 +41,20 @@ function createMutationResult() {
   };
 }
 
+function renderSection(currentProject: Project = project) {
+  return render(
+    <MemoryRouter initialEntries={[`/projects/${currentProject.id}`]}>
+      <Routes>
+        <Route
+          path="/projects/:projectId"
+          element={<ProjectMembersSection project={currentProject} />}
+        />
+        <Route path="/projects" element={<h1>Danh sách dự án</h1>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
 describe('ProjectMembersSection', () => {
   beforeEach(() => {
     vi.mocked(useProjectMemberMutations).mockReturnValue(
@@ -55,7 +71,7 @@ describe('ProjectMembersSection', () => {
       data: undefined,
     } as unknown as ReturnType<typeof useProjectMembers>);
 
-    render(<ProjectMembersSection project={project} />);
+    renderSection();
 
     expect(screen.getByRole('status')).toHaveTextContent(
       'Đang tải thành viên...',
@@ -71,7 +87,7 @@ describe('ProjectMembersSection', () => {
       refetch,
     } as unknown as ReturnType<typeof useProjectMembers>);
 
-    render(<ProjectMembersSection project={project} />);
+    renderSection();
     await userEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(
@@ -117,7 +133,7 @@ describe('ProjectMembersSection', () => {
       },
     } as unknown as ReturnType<typeof useProjectMembers>);
 
-    render(<ProjectMembersSection project={project} />);
+    renderSection();
 
     const rows = within(screen.getByRole('list', { name: 'Thành viên dự án' }))
       .getAllByRole('listitem');
@@ -138,7 +154,7 @@ describe('ProjectMembersSection', () => {
       data: { data: [] },
     } as unknown as ReturnType<typeof useProjectMembers>);
 
-    render(<ProjectMembersSection project={project} />);
+    renderSection();
 
     expect(screen.getByText('Dự án chưa có thành viên.')).toBeInTheDocument();
   });
@@ -154,9 +170,7 @@ describe('ProjectMembersSection', () => {
       data: { data: [] },
     } as unknown as ReturnType<typeof useProjectMembers>);
 
-    render(
-      <ProjectMembersSection project={{ ...project, ...overrides }} />,
-    );
+    renderSection({ ...project, ...overrides });
 
     expect(
       screen.getByText('Danh sách thành viên đang ở chế độ chỉ xem.'),
@@ -199,7 +213,7 @@ describe('ProjectMembersSection', () => {
       },
     } as unknown as ReturnType<typeof useProjectMembers>);
 
-    render(<ProjectMembersSection project={project} />);
+    renderSection();
     await userEvent.selectOptions(
       screen.getByRole('combobox', { name: 'Vai trò của Hoàng Hào' }),
       'MANAGER',
@@ -236,7 +250,7 @@ describe('ProjectMembersSection', () => {
       },
     } as unknown as ReturnType<typeof useProjectMembers>);
 
-    render(<ProjectMembersSection project={project} />);
+    renderSection();
     await userEvent.click(
       screen.getByRole('button', { name: 'Xóa Hoàng Hào' }),
     );
@@ -255,5 +269,117 @@ describe('ProjectMembersSection', () => {
       userId: 'member-1',
     });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it.each(['MANAGER', 'MEMBER'] as const)(
+    'shows the leave action to a current %s',
+    (accessRole) => {
+      vi.mocked(useProjectMembers).mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: { data: [] },
+      } as unknown as ReturnType<typeof useProjectMembers>);
+
+      renderSection({ ...project, accessRole });
+
+      expect(
+        screen.getByRole('button', { name: 'Rời dự án' }),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it.each(['OWNER', 'ADMIN_VIEWER'] as const)(
+    'does not show the leave action to an %s',
+    (accessRole) => {
+      vi.mocked(useProjectMembers).mockReturnValue({
+        isPending: false,
+        isError: false,
+        data: { data: [] },
+      } as unknown as ReturnType<typeof useProjectMembers>);
+
+      renderSection({ ...project, accessRole });
+
+      expect(
+        screen.queryByRole('button', { name: 'Rời dự án' }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it('asks for normal confirmation without requiring a project key', async () => {
+    vi.mocked(useProjectMembers).mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: { data: [] },
+    } as unknown as ReturnType<typeof useProjectMembers>);
+
+    renderSection({ ...project, accessRole: 'MEMBER' });
+    await userEvent.click(screen.getByRole('button', { name: 'Rời dự án' }));
+
+    expect(screen.getByRole('dialog')).toHaveTextContent(
+      'Rời dự án Project Management K2H?',
+    );
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Xác nhận rời dự án' }),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the member on the detail page when leaving fails', async () => {
+    const mutations = createMutationResult();
+    mutations.leaveProject.mutateAsync.mockRejectedValue(
+      new ApiError(
+        409,
+        'PROJECT_MEMBERSHIP_LOCKED',
+        'Thành viên của dự án đang bị khóa',
+      ),
+    );
+    vi.mocked(useProjectMemberMutations).mockReturnValue(
+      mutations as unknown as ReturnType<typeof useProjectMemberMutations>,
+    );
+    vi.mocked(useProjectMembers).mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: { data: [] },
+    } as unknown as ReturnType<typeof useProjectMembers>);
+
+    renderSection({ ...project, accessRole: 'MEMBER' });
+    await userEvent.click(screen.getByRole('button', { name: 'Rời dự án' }));
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Xác nhận rời dự án' }),
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Thành viên của dự án đang bị khóa',
+    );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Danh sách dự án' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('redirects only after leaving succeeds', async () => {
+    const mutations = createMutationResult();
+    mutations.leaveProject.mutateAsync.mockResolvedValue(undefined);
+    vi.mocked(useProjectMemberMutations).mockReturnValue(
+      mutations as unknown as ReturnType<typeof useProjectMemberMutations>,
+    );
+    vi.mocked(useProjectMembers).mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: { data: [] },
+    } as unknown as ReturnType<typeof useProjectMembers>);
+
+    renderSection({ ...project, accessRole: 'MANAGER' });
+    await userEvent.click(screen.getByRole('button', { name: 'Rời dự án' }));
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Xác nhận rời dự án' }),
+    );
+
+    expect(mutations.leaveProject.mutateAsync).toHaveBeenCalledWith(
+      'project-1',
+    );
+    expect(
+      await screen.findByRole('heading', { name: 'Danh sách dự án' }),
+    ).toBeInTheDocument();
   });
 });
