@@ -33,6 +33,7 @@ describe('ProjectsPage', () => {
             id: 'p1', key: 'K2H', name: 'K2H', description: null,
             status: 'ACTIVE', startDate: null, endDate: null,
             archivedAt: null, deletedAt: null,
+            accessRole: 'ADMIN_VIEWER',
             owner: { id: 'user-2', displayName: 'Hoàng Hào' },
             createdAt: '2026-10-15', updatedAt: '2026-10-15',
           },
@@ -51,6 +52,7 @@ describe('ProjectsPage', () => {
     );
 
     expect(screen.getByText('Hoàng Hào')).toBeInTheDocument();
+    expect(screen.getByText('Admin viewer')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Đã xóa' })).toBeInTheDocument();
   });
 });
