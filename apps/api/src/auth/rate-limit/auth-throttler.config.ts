@@ -13,9 +13,8 @@ export function createAuthThrottlerOptions(
       name: 'register',
       limit: configService.getOrThrow<number>('AUTH_REGISTER_RATE_LIMIT'),
       ttl:
-        configService.getOrThrow<number>(
-          'AUTH_REGISTER_RATE_TTL_SECONDS',
-        ) * MILLISECONDS_PER_SECOND,
+        configService.getOrThrow<number>('AUTH_REGISTER_RATE_TTL_SECONDS') *
+        MILLISECONDS_PER_SECOND,
     },
     {
       name: 'login',
@@ -28,9 +27,15 @@ export function createAuthThrottlerOptions(
       name: 'refresh',
       limit: configService.getOrThrow<number>('AUTH_REFRESH_RATE_LIMIT'),
       ttl:
-        configService.getOrThrow<number>(
-          'AUTH_REFRESH_RATE_TTL_SECONDS',
-        ) * MILLISECONDS_PER_SECOND,
+        configService.getOrThrow<number>('AUTH_REFRESH_RATE_TTL_SECONDS') *
+        MILLISECONDS_PER_SECOND,
+    },
+    {
+      name: 'demo',
+      limit: configService.getOrThrow<number>('DEMO_RATE_LIMIT'),
+      ttl:
+        configService.getOrThrow<number>('DEMO_RATE_TTL_SECONDS') *
+        MILLISECONDS_PER_SECOND,
     },
   ];
 }

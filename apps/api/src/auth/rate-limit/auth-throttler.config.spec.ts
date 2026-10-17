@@ -14,6 +14,8 @@ describe('createAuthThrottlerOptions', () => {
       AUTH_LOGIN_RATE_TTL_SECONDS: 60,
       AUTH_REFRESH_RATE_LIMIT: 20,
       AUTH_REFRESH_RATE_TTL_SECONDS: 60,
+      DEMO_RATE_LIMIT: 3,
+      DEMO_RATE_TTL_SECONDS: 3600,
     });
 
     expect(createAuthThrottlerOptions(configService)).toEqual([
@@ -31,6 +33,11 @@ describe('createAuthThrottlerOptions', () => {
         name: 'refresh',
         limit: 20,
         ttl: 60_000,
+      },
+      {
+        name: 'demo',
+        limit: 3,
+        ttl: 3_600_000,
       },
     ]);
   });

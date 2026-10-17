@@ -1,10 +1,11 @@
-export type UserRole = 'USER' | 'ADMIN';
+export type UserRole = "USER" | "ADMIN";
 
 export type SafeUser = {
   id: string;
   email: string;
   displayName: string;
   role: UserRole;
+  demoExpiresAt?: string;
 };
 
 export type AuthResponse = {
@@ -23,6 +24,6 @@ export type RegisterInput = LoginInput & {
 };
 
 export type AuthState =
-  | { status: 'initializing' }
-  | { status: 'unauthenticated' }
-  | { status: 'authenticated'; user: SafeUser };
+  | { status: "initializing" }
+  | { status: "unauthenticated" }
+  | { status: "authenticated"; user: SafeUser };

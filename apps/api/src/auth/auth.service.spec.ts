@@ -532,6 +532,26 @@ describe('AuthService', () => {
   });
 
   describe('refresh', () => {
+    it('rejects refresh for an expired demo even while its refresh token remains valid', async () => {
+      const session = Object.assign(new RefreshSession(), {
+        userId: '11111111-1111-4111-8111-111111111111',
+        expiresAt: new Date(Date.now() + 3_600_000),
+        revokedAt: null,
+      });
+      const user = Object.assign(new User(), {
+        id: session.userId,
+        demoExpiresAt: new Date(Date.now() - 1_000),
+      });
+      refreshSessionsService.findByTokenDigestForUpdate.mockResolvedValue(
+        session,
+      );
+      usersService.findById.mockResolvedValue(user);
+
+      await expect(
+        authService.refresh('demo-refresh-token'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(refreshSessionsService.rotateActiveSession).not.toHaveBeenCalled();
+    });
     it('rotates a valid refresh session and returns new auth data', async () => {
       //Arrange
       const user = Object.assign(new User(), {
@@ -853,9 +873,9 @@ describe('AuthService', () => {
         databaseError,
       );
 
-      await expect(
-        authService.logout('plaintext-refresh-token'),
-      ).rejects.toBe(databaseError);
+      await expect(authService.logout('plaintext-refresh-token')).rejects.toBe(
+        databaseError,
+      );
     });
   });
 

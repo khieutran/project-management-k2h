@@ -237,6 +237,14 @@ Request `POST /api/auth/refresh` trả `401` trước khi người dùng đăng 
 
 Xem contract, xử lý sự cố và smoke test tại [runbook authentication](docs/runbooks/authentication.md).
 
+### Trải nghiệm demo
+
+Ở `/login`, nút **Trải nghiệm demo** gọi `POST /api/auth/demo`. API tạo một tài khoản `USER` riêng, ba project mẫu và refresh session trong cùng transaction. Người thử được quyền chỉnh sửa các project của chính phiên demo; project API hiện tại lọc theo owner/member nên các lượt truy cập đồng thời không dùng chung dữ liệu.
+
+Tài khoản demo hết hạn sau 24 giờ theo mặc định (`DEMO_SESSION_TTL_SECONDS`). Access token được giới hạn tới thời điểm hết hạn; refresh sau thời điểm đó bị từ chối. API xóa tài khoản và project demo hết hạn khi khởi động và mỗi giờ. `DEMO_RATE_LIMIT` và `DEMO_RATE_TTL_SECONDS` giới hạn số lượt tạo demo theo IP. Không có mật khẩu demo trong frontend hoặc repository.
+
+Trước khi chạy DEV, áp dụng migration mới bằng `pnpm db:migration:run`; quy trình deploy DEV hiện chạy migration trước khi đổi ứng dụng. TTL và rate limit có thể điều chỉnh qua biến môi trường.
+
 ## Quản lý dự án
 
 Mỗi người dùng đã đăng nhập có thể tạo project và trở thành owner. Owner có quyền cập nhật, chuyển trạng thái, archive, restore và xóa mềm project của mình.

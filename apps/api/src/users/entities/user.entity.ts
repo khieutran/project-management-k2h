@@ -30,6 +30,9 @@ export class User {
   })
   displayName: string;
 
+  @Column({ name: 'demo_expires_at', type: 'timestamptz', nullable: true })
+  demoExpiresAt: Date | null;
+
   @Column({
     type: 'enum',
     enum: UserRole,

@@ -7,5 +7,8 @@ export function toSafeUser(user: User): SafeUser {
     email: user.email,
     displayName: user.displayName,
     role: user.role,
+    ...(user.demoExpiresAt
+      ? { demoExpiresAt: user.demoExpiresAt.toISOString() }
+      : {}),
   };
 }

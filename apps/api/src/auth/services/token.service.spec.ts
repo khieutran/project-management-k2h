@@ -71,6 +71,18 @@ describe('TokenService', () => {
   });
 
   describe('issueAccessToken', () => {
+    it('ends a demo access token at the demo deadline', async () => {
+      const deadline = new Date(Date.now() + 120_000);
+      const token = await tokenService.issueAccessToken({
+        userId: '11111111-1111-4111-8111-111111111111',
+        sessionId: '22222222-2222-4222-8222-222222222222',
+        role: UserRole.User,
+        expiresAt: deadline,
+      });
+      const payload = await tokenService.verifyAccessToken(token);
+      expect(payload.exp - payload.iat).toBeGreaterThanOrEqual(119);
+      expect(payload.exp - payload.iat).toBeLessThanOrEqual(120);
+    });
     it('issues a signed JWT with the required claims and TTL', async () => {
       const accessToken = await tokenService.issueAccessToken({
         userId: '11111111-1111-4111-8111-111111111111',

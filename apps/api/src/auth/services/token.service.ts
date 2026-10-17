@@ -35,6 +35,15 @@ export class TokenService {
   }
 
   issueAccessToken(input: IssueAccessTokenInput): Promise<string> {
+    const expiresIn = input.expiresAt
+      ? Math.min(
+          this.jwtAccessTtlSeconds,
+          Math.max(
+            1,
+            Math.floor((input.expiresAt.getTime() - Date.now()) / 1000),
+          ),
+        )
+      : this.jwtAccessTtlSeconds;
     const payload: AccessTokenPayload = {
       sub: input.userId,
       sid: input.sessionId,
@@ -43,7 +52,7 @@ export class TokenService {
 
     return this.jwtService.signAsync(payload, {
       secret: this.jwtAccessSecret,
-      expiresIn: this.jwtAccessTtlSeconds,
+      expiresIn,
       algorithm: 'HS256',
     });
   }
