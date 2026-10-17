@@ -4,6 +4,7 @@ export type IssueAccessTokenInput = {
   userId: string;
   sessionId: string;
   role: UserRole;
+  expiresAt?: Date;
 };
 
 export type AccessTokenPayload = {

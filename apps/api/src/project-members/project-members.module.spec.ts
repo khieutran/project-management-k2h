@@ -7,6 +7,7 @@ import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthModule } from '../auth/auth.module';
 import { AuthService } from '../auth/auth.service';
+import { DemoService } from '../auth/demo/demo.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RefreshSession } from '../refresh-sessions/entities/refresh-session.entity';
 import { Project } from '../projects/entities/project.entity';
@@ -119,6 +120,8 @@ describe('ProjectMembersModule', () => {
       .useValue(configService)
       .overrideProvider(AuthService)
       .useValue(authService)
+      .overrideProvider(DemoService)
+      .useValue({})
       .overrideProvider(ProjectsService)
       .useValue(projectsService)
       .overrideProvider(ProjectAccessService)

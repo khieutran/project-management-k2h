@@ -17,6 +17,7 @@ import { RefreshTokenCookieService } from './services/refresh-token-cookie.servi
 import { AuthController } from './controllers/auth.controller';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { DemoService } from './demo/demo.service';
 
 describe('AuthModule', () => {
   it('imports the user and refresh-session modules', async () => {
@@ -95,6 +96,8 @@ describe('AuthModule', () => {
       .useValue(configService)
       .overrideProvider(AuthService)
       .useValue(authService)
+      .overrideProvider(DemoService)
+      .useValue({})
       .compile();
 
     expect(testingModule).toBeDefined();

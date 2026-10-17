@@ -5,4 +5,5 @@ export type SafeUser = {
   email: string;
   displayName: string;
   role: UserRole;
+  demoExpiresAt?: string;
 };

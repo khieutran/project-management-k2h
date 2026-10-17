@@ -46,7 +46,7 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(ThrottlerGuard)
-  @SkipThrottle({ login: true, refresh: true })
+  @SkipThrottle({ login: true, refresh: true, demo: true })
   @ApiOperation({ summary: 'Register a new user' })
   @ApiCreatedResponse({ description: 'User and auth session were created' })
   @ApiBadRequestResponse({ description: 'Registration input is invalid' })
@@ -68,7 +68,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ThrottlerGuard)
-  @SkipThrottle({ register: true, refresh: true })
+  @SkipThrottle({ register: true, refresh: true, demo: true })
   @ApiOperation({ summary: 'Log in with email and password' })
   @ApiOkResponse({ description: 'Authentication succeeded' })
   @ApiBadRequestResponse({ description: 'Login input is invalid' })
@@ -90,7 +90,7 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ThrottlerGuard)
-  @SkipThrottle({ register: true, login: true })
+  @SkipThrottle({ register: true, login: true, demo: true })
   @ApiCookieAuth('refresh-token')
   @ApiOperation({ summary: 'Rotate the refresh token and issue new auth data' })
   @ApiOkResponse({ description: 'Refresh token was rotated' })
@@ -144,7 +144,9 @@ export class AuthController {
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Get the current authenticated user' })
   @ApiOkResponse({ description: 'Current safe user data' })
-  @ApiUnauthorizedResponse({ description: 'Access token is invalid or expired' })
+  @ApiUnauthorizedResponse({
+    description: 'Access token is invalid or expired',
+  })
   me(@Req() request: AuthenticatedRequest): Promise<SafeUser> {
     return this.authService.getCurrentUser(request.user.userId);
   }

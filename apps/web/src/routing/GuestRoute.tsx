@@ -1,17 +1,17 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet } from "react-router-dom";
 
-import { useAuth } from '../auth/use-auth';
-import { AuthLoading } from './AuthLoading';
+import { useAuth } from "../auth/use-auth";
+import { AuthLoading } from "./AuthLoading";
 
 export function GuestRoute() {
   const { state } = useAuth();
 
-  if (state.status === 'initializing') {
+  if (state.status === "initializing") {
     return <AuthLoading />;
   }
 
-  if (state.status === 'authenticated') {
-    return <Navigate to="/" replace />;
+  if (state.status === "authenticated") {
+    return <Navigate to="/projects" replace />;
   }
 
   return <Outlet />;

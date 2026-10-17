@@ -11,6 +11,8 @@ import { RefreshTokenCookieService } from './services/refresh-token-cookie.servi
 import { AuthController } from './controllers/auth.controller';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { DemoController } from './demo/demo.controller';
+import { DemoService } from './demo/demo.service';
 
 @Module({
   imports: [
@@ -19,7 +21,7 @@ import { RolesGuard } from './guards/roles.guard';
     UsersModule,
     RefreshSessionsModule,
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, DemoController],
   providers: [
     AuthService,
     PasswordService,
@@ -27,6 +29,7 @@ import { RolesGuard } from './guards/roles.guard';
     TokenService,
     JwtAuthGuard,
     RolesGuard,
+    DemoService,
   ],
   exports: [JwtAuthGuard, RolesGuard, TokenService],
 })
