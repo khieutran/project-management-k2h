@@ -21,6 +21,7 @@ export function ProjectMembersSection({ project }: { project: Project }) {
   const mutations = useProjectMemberMutations();
   const [memberToRemove, setMemberToRemove] = useState<ProjectMember>();
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [mutationError, setMutationError] = useState<string>();
   const isReadOnly =
     project.accessRole === 'ADMIN_VIEWER' ||
@@ -32,6 +33,7 @@ export function ProjectMembersSection({ project }: { project: Project }) {
 
   async function addMember(input: AddProjectMemberInput): Promise<void> {
     await mutations.addMember.mutateAsync({ projectId: project.id, input });
+    setShowAddForm(false);
   }
 
   async function changeMemberRole(
@@ -88,6 +90,16 @@ export function ProjectMembersSection({ project }: { project: Project }) {
           <p className="section-eyebrow">Project access</p>
           <h2 id="project-members-title">Thành viên</h2>
         </div>
+        {canManage ? (
+          <button
+            className="secondary-button"
+            type="button"
+            aria-expanded={showAddForm}
+            onClick={() => setShowAddForm((open) => !open)}
+          >
+            {showAddForm ? 'Đóng biểu mẫu' : 'Thêm thành viên'}
+          </button>
+        ) : null}
         {canLeave ? (
           <button
             className="danger-link"
@@ -106,7 +118,7 @@ export function ProjectMembersSection({ project }: { project: Project }) {
         </p>
       ) : null}
 
-      {canManage ? <AddProjectMemberForm onSubmit={addMember} /> : null}
+      {canManage && showAddForm ? <AddProjectMemberForm onSubmit={addMember} /> : null}
 
       {mutationError ? (
         <p className="form-alert" role="alert">

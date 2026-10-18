@@ -97,8 +97,8 @@ export function AddProjectMemberForm({
             setRole(event.target.value as ProjectMemberRole)
           }
         >
-          <option value="MEMBER">Member</option>
-          <option value="MANAGER">Manager</option>
+          <option value="MEMBER">Thành viên</option>
+          <option value="MANAGER">Quản lý</option>
         </select>
       </div>
 

@@ -64,6 +64,25 @@ describe('ProjectMembersSection', () => {
     );
   });
 
+  it('shows members before the add-member form and opens the form on request', async () => {
+    vi.mocked(useProjectMembers).mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: { data: [{
+        user: { id: 'owner-1', displayName: 'Khách trải nghiệm', email: 'demo-example@demo.k2h.invalid' },
+        role: 'OWNER', joinedAt: null,
+      }] },
+    } as unknown as ReturnType<typeof useProjectMembers>);
+
+    renderSection();
+
+    expect(screen.getByText('Khách trải nghiệm')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Email thành viên')).not.toBeInTheDocument();
+    expect(screen.getByText('Tài khoản trải nghiệm')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Thêm thành viên' }));
+    expect(screen.getByLabelText('Email thành viên')).toBeInTheDocument();
+  });
+
   it('shows a loading state while members are being fetched', () => {
     vi.mocked(useProjectMembers).mockReturnValue({
       isPending: true,
@@ -142,9 +161,9 @@ describe('ProjectMembersSection', () => {
     expect(rows[0]).toHaveTextContent('owner@example.com');
     expect(rows[0]).toHaveTextContent('Chủ sở hữu');
     expect(rows[1]).toHaveTextContent('Hoàng Hào');
-    expect(rows[1]).toHaveTextContent('Manager');
+    expect(rows[1]).toHaveTextContent('Quản lý');
     expect(rows[2]).toHaveTextContent('Quốc Hiệp');
-    expect(rows[2]).toHaveTextContent('Member');
+    expect(rows[2]).toHaveTextContent('Thành viên');
   });
 
   it('shows a clear empty state', () => {

@@ -52,7 +52,7 @@ describe('ProjectsPage', () => {
     );
 
     expect(screen.getByText('Hoàng Hào')).toBeInTheDocument();
-    expect(screen.getByText('Admin viewer')).toBeInTheDocument();
+    expect(screen.getByText('Quản trị · Chỉ xem')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Đã xóa' })).toBeInTheDocument();
   });
 });

@@ -33,7 +33,7 @@ describe('AppRoot', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows protected home after bootstrap restores a session', async () => {
+  it('shows the project overview after bootstrap restores a session', async () => {
     vi.mocked(authApi.refresh).mockResolvedValue({
       user: {
         id: '11111111-1111-4111-8111-111111111111',
@@ -48,7 +48,7 @@ describe('AppRoot', () => {
     render(<AppRoot />);
 
     expect(
-      await screen.findByText('Xin chào, Nguyen Van A'),
+      await screen.findByRole('heading', { name: 'Tổng quan' }),
     ).toBeInTheDocument();
   });
 });

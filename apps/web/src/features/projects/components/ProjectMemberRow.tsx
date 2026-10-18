@@ -22,7 +22,7 @@ export function ProjectMemberRow({
     <li className="project-member-row">
       <div className="project-member-identity">
         <strong>{member.user.displayName}</strong>
-        <span>{member.user.email}</span>
+        <span>{member.user.email.endsWith('@demo.k2h.invalid') ? 'Tài khoản trải nghiệm' : member.user.email}</span>
       </div>
       {showControls ? (
         <div className="project-member-controls">
@@ -38,8 +38,8 @@ export function ProjectMemberRow({
                 onChangeRole?.(event.target.value as ProjectMemberRole)
               }
             >
-              <option value="MEMBER">Member</option>
-              <option value="MANAGER">Manager</option>
+              <option value="MEMBER">Thành viên</option>
+              <option value="MANAGER">Quản lý</option>
             </select>
           </label>
           <button

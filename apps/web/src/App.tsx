@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import './App.css';
+import './workspace.css';
 import { CreateProjectPage } from './features/projects/pages/CreateProjectPage';
 import { EditProjectPage } from './features/projects/pages/EditProjectPage';
 import { ProjectDetailPage } from './features/projects/pages/ProjectDetailPage';
