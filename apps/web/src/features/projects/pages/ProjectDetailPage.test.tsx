@@ -137,6 +137,40 @@ describe('ProjectDetailPage', () => {
     expect(create).toHaveBeenCalledWith({ type: 'TASK', title: 'Thiết kế hệ thống' });
   });
 
+  it('keeps keyboard focus in the create dialog and returns it to the add button on Escape', async () => {
+    vi.mocked(useProjectMembers).mockReturnValue({ data: { data: [] }, isPending: false, isError: false } as unknown as ReturnType<typeof useProjectMembers>);
+    vi.mocked(useProject).mockReturnValue({ data: {
+      id: 'p1', key: 'AIF', name: 'AI Factory', description: null, status: 'ACTIVE',
+      startDate: null, endDate: null, archivedAt: null, deletedAt: null, accessRole: 'OWNER',
+      owner: { id: 'owner-1', displayName: 'Hào' }, createdAt: '2026-10-01', updatedAt: '2026-10-15',
+    }, isPending: false, isError: false } as unknown as ReturnType<typeof useProject>);
+    const user = userEvent.setup();
+
+    renderDetail('owner-1');
+    const addButton = screen.getByRole('button', { name: 'Thêm task' });
+    await user.click(addButton);
+
+    expect(screen.getByRole('dialog', { name: 'Tạo task' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Tên công việc')).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Hủy' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Tạo task' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Đóng' })).toHaveFocus();
+    await user.keyboard('{Shift>}{Tab}{/Shift}');
+    expect(screen.getByRole('button', { name: 'Tạo task' })).toHaveFocus();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Tạo task' })).not.toBeInTheDocument();
+    expect(addButton).toHaveFocus();
+
+    await user.click(addButton);
+    await user.click(screen.getByRole('button', { name: 'Hủy' }));
+    expect(screen.queryByRole('dialog', { name: 'Tạo task' })).not.toBeInTheDocument();
+    expect(addButton).toHaveFocus();
+  });
+
   it('opens an item from a direct URL and closes back to the project', async () => {
     vi.mocked(useWorkItem).mockReturnValue({ data: {
       id: 'item-1', projectId: 'p1', type: 'TASK', title: 'Thiết kế hệ thống',

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import { ProjectAccessBadge } from '../components/ProjectAccessBadge';
@@ -39,7 +39,34 @@ export function ProjectDetailPage() {
   const [creatingType, setCreatingType] = useState<WorkItemType | null>(null);
   const [newItemTitle, setNewItemTitle] = useState('');
   const [itemError, setItemError] = useState('');
+  const createDialog = useRef<HTMLDivElement>(null);
+  const addButton = useRef<HTMLElement | null>(null);
   const canWriteItems = Boolean(project && project.accessRole !== 'ADMIN_VIEWER' && !project.archivedAt && !project.deletedAt);
+
+  useEffect(() => {
+    if (!creatingType) return;
+    return () => addButton.current?.focus();
+  }, [creatingType]);
+
+  function handleCreateDialogKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      setCreatingType(null);
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const controls = Array.from(createDialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)') ?? []);
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first?.focus();
+    }
+  }
 
   async function createItem(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -92,11 +119,15 @@ export function ProjectDetailPage() {
 
           {workItems.isPending ? <p role="status">Đang tải công việc...</p> : null}
           {workItems.isError ? <p role="alert">Không thể tải công việc. <button type="button" onClick={() => void workItems.refetch()}>Thử lại</button></p> : null}
-          <ProjectContainer project={project} items={workItems.data ?? []} canWrite={canWriteItems} onAdd={(type) => { setCreatingType(type); setItemError(''); }} />
+          <ProjectContainer project={project} items={workItems.data ?? []} canWrite={canWriteItems} onAdd={(type) => {
+            addButton.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            setCreatingType(type);
+            setItemError('');
+          }} />
 
           {creatingType ? (
             <div className="work-item-dialog-backdrop" role="presentation">
-              <div className="work-item-create-dialog" role="dialog" aria-modal="true" aria-label={`Tạo ${creatingType.toLowerCase()}`}>
+              <div className="work-item-create-dialog" ref={createDialog} onKeyDown={handleCreateDialogKeyDown} role="dialog" aria-modal="true" aria-label={`Tạo ${creatingType.toLowerCase()}`}>
                 <div className="work-item-create-heading"><h2>Tạo {creatingType.toLowerCase()}</h2><button type="button" aria-label="Đóng" onClick={() => setCreatingType(null)}>×</button></div>
                 <form onSubmit={(event) => void createItem(event)}>
                   <label htmlFor="work-item-title">Tên công việc</label>
