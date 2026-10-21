@@ -3,6 +3,8 @@ import type { DataSource, EntityManager } from 'typeorm';
 
 import type { EnvironmentVariables } from '../../config/environment.schema';
 import { Project } from '../../projects/entities/project.entity';
+import { WorkItem } from '../../work-items/work-item.entity';
+import { WorkItemType } from '../../work-items/work-item.enums';
 import { User } from '../../users/entities/user.entity';
 import type { RefreshSessionsService } from '../../refresh-sessions/refresh-sessions.service';
 import type { PasswordService } from '../services/password.service';
@@ -12,11 +14,13 @@ import { DemoService } from './demo.service';
 describe('DemoService', () => {
   const savedUsers: User[] = [];
   const savedProjects: Project[] = [];
+  const savedWorkItems: WorkItem[] = [];
   let service: DemoService;
 
   beforeEach(() => {
     savedUsers.length = 0;
     savedProjects.length = 0;
+    savedWorkItems.length = 0;
     const manager = {
       getRepository: jest.fn((entity: unknown) => {
         if (entity === User)
@@ -41,6 +45,14 @@ describe('DemoService', () => {
               );
               savedProjects.push(...projects);
               return projects;
+            },
+          };
+        if (entity === WorkItem)
+          return {
+            create: (input: WorkItem) => input,
+            save: async (input: WorkItem[]) => {
+              savedWorkItems.push(...input);
+              return input;
             },
           };
         throw new Error('Unexpected entity');
@@ -96,5 +108,19 @@ describe('DemoService', () => {
     ).toBe(true);
     expect(savedProjects[0]?.key).not.toBe(savedProjects[3]?.key);
     expect(first.response).not.toHaveProperty('refreshToken');
+  });
+
+  it('seeds each demo project with private parcels for the container view', async () => {
+    await service.createSession();
+    await service.createSession();
+
+    expect(savedWorkItems).toHaveLength(12);
+    expect(savedProjects.map((project) => savedWorkItems.filter((item) => item.projectId === project.id).length)).toEqual([3, 2, 1, 3, 2, 1]);
+    expect(savedWorkItems.filter((item) => item.projectId === savedProjects[0]?.id).map((item) => item.type)).toEqual([
+      WorkItemType.Task,
+      WorkItemType.Bug,
+      WorkItemType.Test,
+    ]);
+    expect(savedWorkItems.every((item) => savedProjects.some((project) => project.id === item.projectId))).toBe(true);
   });
 });

@@ -15,6 +15,8 @@ import { RefreshSessionsService } from '../../refresh-sessions/refresh-sessions.
 import { User } from '../../users/entities/user.entity';
 import { UserRole } from '../../users/enums/user-role.enum';
 import { toSafeUser } from '../../users/mappers/to-safe-user';
+import { WorkItem } from '../../work-items/work-item.entity';
+import { WorkItemPriority, WorkItemStatus, WorkItemType } from '../../work-items/work-item.enums';
 import { PasswordService } from '../services/password.service';
 import { TokenService } from '../services/token.service';
 import type { AuthSessionResult } from '../types/auth-session-result.type';
@@ -76,7 +78,7 @@ export class DemoService implements OnModuleInit, OnModuleDestroy {
         }),
       );
 
-      await manager.getRepository(Project).save(
+      const projects = await manager.getRepository(Project).save(
         [
           {
             key: this.projectKey(),
@@ -115,6 +117,46 @@ export class DemoService implements OnModuleInit, OnModuleDestroy {
             deletedAt: null,
           },
         ].map((input) => manager.getRepository(Project).create(input)),
+      );
+      const [websiteProject, mobileProject, introProject] = projects;
+      if (!websiteProject || !mobileProject || !introProject) {
+        throw new Error('Failed to seed demo projects');
+      }
+
+      const workItems = manager.getRepository(WorkItem);
+      await workItems.save(
+        [
+          {
+            projectId: websiteProject.id, type: WorkItemType.Task, title: 'Thiết kế trang sản phẩm',
+            description: 'Hoàn thiện bố cục và các thành phần chính của trang sản phẩm.',
+            status: WorkItemStatus.InProgress, priority: WorkItemPriority.High, labels: ['giao diện'],
+          },
+          {
+            projectId: websiteProject.id, type: WorkItemType.Bug, title: 'Sửa nút đăng nhập trên mobile',
+            description: 'Nút đăng nhập chưa phản hồi ổn định trên màn hình nhỏ.',
+            status: WorkItemStatus.Todo, priority: WorkItemPriority.Medium, labels: ['mobile'],
+          },
+          {
+            projectId: websiteProject.id, type: WorkItemType.Test, title: 'Kiểm thử luồng đăng ký',
+            description: 'Kiểm tra tạo tài khoản, thông báo lỗi và xác nhận đăng nhập.',
+            status: WorkItemStatus.Review, priority: WorkItemPriority.Medium, labels: ['kiểm thử'],
+          },
+          {
+            projectId: mobileProject.id, type: WorkItemType.Task, title: 'Lên luồng onboarding',
+            description: 'Phác thảo các bước giới thiệu ứng dụng cho người dùng mới.',
+            status: WorkItemStatus.Todo, priority: WorkItemPriority.High, labels: ['trải nghiệm'],
+          },
+          {
+            projectId: mobileProject.id, type: WorkItemType.Test, title: 'Kiểm thử thông báo đẩy',
+            description: 'Xác nhận thông báo hiển thị đúng trong các trạng thái ứng dụng.',
+            status: WorkItemStatus.Todo, priority: WorkItemPriority.Low, labels: ['kiểm thử'],
+          },
+          {
+            projectId: introProject.id, type: WorkItemType.Task, title: 'Hoàn thiện nội dung giới thiệu',
+            description: 'Rà soát nội dung và hình ảnh trước khi bàn giao.',
+            status: WorkItemStatus.Done, priority: WorkItemPriority.Medium, labels: ['nội dung'],
+          },
+        ].map((input) => workItems.create(input)),
       );
 
       const session = await this.refreshSessionsService.createInitialSession(
