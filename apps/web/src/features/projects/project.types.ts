@@ -34,6 +34,7 @@ export type ProjectListQuery = {
   search?: string;
   status?: ProjectStatus;
   view: ProjectListView;
+  sort?: 'updated_desc' | 'created_asc';
 };
 
 export type PaginatedProjects = {
