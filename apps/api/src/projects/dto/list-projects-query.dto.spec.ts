@@ -45,6 +45,13 @@ describe('ListProjectsQueryDto', () => {
     expect(dto.search).toBeUndefined();
   });
 
+  it('accepts the yard creation order', async () => {
+    const dto = plainToInstance(ListProjectsQueryDto, { sort: 'created_asc' });
+
+    await expect(validate(dto)).resolves.toHaveLength(0);
+    expect(dto.sort).toBe('created_asc');
+  });
+
   it.each([
     { page: '0' },
     { page: '1.5' },
@@ -52,6 +59,7 @@ describe('ListProjectsQueryDto', () => {
     { limit: '101' },
     { status: 'PAUSED' },
     { view: 'all' },
+    { sort: 'random' },
     { search: 'a'.repeat(101) },
   ])('rejects invalid query input %#', async (input) => {
     const dto = plainToInstance(ListProjectsQueryDto, input);
