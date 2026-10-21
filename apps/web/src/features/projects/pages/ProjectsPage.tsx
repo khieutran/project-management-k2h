@@ -39,20 +39,20 @@ export function ProjectsPage() {
   const projects = useProjects(query);
 
   useEffect(() => {
-    if (!projects.data || query.page <= Math.max(1, projects.data.pagination.totalPages)) return;
+    if (!projects.data || projects.isFetching || query.page <= Math.max(1, projects.data.pagination.totalPages)) return;
     const next = new URLSearchParams(params);
     next.set('page', String(Math.max(1, projects.data.pagination.totalPages)));
     setParams(next, { replace: true });
-  }, [projects.data, query.page, params, setParams]);
+  }, [projects.data, projects.isFetching, query.page, params, setParams]);
 
   useEffect(() => {
-    if (!arrivingProjectId || !projects.data) return;
+    if (!arrivingProjectId || !projects.data || projects.isFetching) return;
     const detailPath = `/projects/${arrivingProjectId}`;
     const foundOnPage = projects.data.data.some((project) => project.id === arrivingProjectId);
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
     const timer = window.setTimeout(() => navigate(detailPath, { replace: true }), foundOnPage && !reducedMotion ? 1600 : 0);
     return () => window.clearTimeout(timer);
-  }, [arrivingProjectId, navigate, projects.data]);
+  }, [arrivingProjectId, navigate, projects.data, projects.isFetching]);
 
   if (state.status !== 'authenticated') return null;
 
