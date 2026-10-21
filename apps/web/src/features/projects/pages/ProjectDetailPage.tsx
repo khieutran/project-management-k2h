@@ -32,9 +32,10 @@ export function ProjectDetailPage() {
   const { projectId = '' } = useParams();
   const [params, setParams] = useSearchParams();
   const selectedItemId = params.get('item');
-  const projectQuery = useProject(projectId, params.get('includeDeleted') === 'true');
+  const includeDeleted = params.get('includeDeleted') === 'true';
+  const projectQuery = useProject(projectId, includeDeleted);
   const project = projectQuery.data;
-  const workItems = useWorkItems(projectId);
+  const workItems = useWorkItems(projectId, includeDeleted);
   const workItemMutations = useWorkItemMutations(projectId);
   const [creatingType, setCreatingType] = useState<WorkItemType | null>(null);
   const [newItemTitle, setNewItemTitle] = useState('');
@@ -119,7 +120,7 @@ export function ProjectDetailPage() {
 
           {workItems.isPending ? <p role="status">Đang tải công việc...</p> : null}
           {workItems.isError ? <p role="alert">Không thể tải công việc. <button type="button" onClick={() => void workItems.refetch()}>Thử lại</button></p> : null}
-          <ProjectContainer project={project} items={workItems.data ?? []} canWrite={canWriteItems} onAdd={(type) => {
+          <ProjectContainer project={project} items={workItems.data ?? []} canWrite={canWriteItems} includeDeleted={includeDeleted} onAdd={(type) => {
             addButton.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
             setCreatingType(type);
             setItemError('');
@@ -139,7 +140,7 @@ export function ProjectDetailPage() {
             </div>
           ) : null}
 
-          {selectedItemId ? <WorkItemDetail projectId={projectId} itemId={selectedItemId} canWrite={canWriteItems} onClose={() => {
+          {selectedItemId ? <WorkItemDetail projectId={projectId} itemId={selectedItemId} canWrite={canWriteItems} includeDeleted={includeDeleted} onClose={() => {
             const next = new URLSearchParams(params);
             next.delete('item');
             setParams(next, { replace: true });

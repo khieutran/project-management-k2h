@@ -17,14 +17,14 @@ export class WorkItemsService {
     private readonly projectAccess: ProjectAccessService,
   ) {}
 
-  async list(actor: AuthenticatedPrincipal, projectId: string): Promise<WorkItemResponse[]> {
-    await this.projectAccess.findReadableProjectOrThrow(actor, projectId);
+  async list(actor: AuthenticatedPrincipal, projectId: string, includeDeleted = false): Promise<WorkItemResponse[]> {
+    await this.projectAccess.findReadableProjectOrThrow(actor, projectId, { includeDeleted });
     const items = await this.items.find({ where: { projectId }, order: { createdAt: 'ASC', id: 'ASC' } });
     return items.map(toWorkItemResponse);
   }
 
-  async detail(actor: AuthenticatedPrincipal, projectId: string, itemId: string): Promise<WorkItemResponse> {
-    await this.projectAccess.findReadableProjectOrThrow(actor, projectId);
+  async detail(actor: AuthenticatedPrincipal, projectId: string, itemId: string, includeDeleted = false): Promise<WorkItemResponse> {
+    await this.projectAccess.findReadableProjectOrThrow(actor, projectId, { includeDeleted });
     return toWorkItemResponse(await this.findInProjectOrThrow(projectId, itemId));
   }
 

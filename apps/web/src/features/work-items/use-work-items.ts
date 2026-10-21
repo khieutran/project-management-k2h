@@ -12,20 +12,20 @@ function useWorkItemsContext() {
   return { actorId, api };
 }
 
-export function useWorkItems(projectId: string) {
+export function useWorkItems(projectId: string, includeDeleted = false) {
   const { actorId, api } = useWorkItemsContext();
   return useQuery({
-    queryKey: ['work-items', actorId, projectId],
-    queryFn: () => api.list(projectId),
+    queryKey: ['work-items', actorId, projectId, includeDeleted],
+    queryFn: () => api.list(projectId, includeDeleted),
     enabled: Boolean(actorId && projectId),
   });
 }
 
-export function useWorkItem(projectId: string, itemId: string) {
+export function useWorkItem(projectId: string, itemId: string, includeDeleted = false) {
   const { actorId, api } = useWorkItemsContext();
   return useQuery({
-    queryKey: ['work-items', actorId, projectId, itemId],
-    queryFn: () => api.detail(projectId, itemId),
+    queryKey: ['work-items', actorId, projectId, itemId, includeDeleted],
+    queryFn: () => api.detail(projectId, itemId, includeDeleted),
     enabled: Boolean(actorId && projectId && itemId),
   });
 }

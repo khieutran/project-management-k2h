@@ -1,8 +1,8 @@
 import {
-  Body, Controller, Delete, Get, HttpCode, HttpStatus, Param,
-  ParseUUIDPipe, Patch, Post, Req, UseGuards,
+  Body, Controller, DefaultValuePipe, Delete, Get, HttpCode, HttpStatus, Param,
+  ParseBoolPipe, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request.type';
@@ -18,11 +18,13 @@ export class WorkItemsController {
   constructor(private readonly service: WorkItemsService) {}
 
   @Get()
+  @ApiQuery({ name: 'includeDeleted', required: false, type: Boolean, description: 'ADMIN-only read access to parcels in a deleted project' })
   list(
     @Req() request: AuthenticatedRequest,
     @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Query('includeDeleted', new DefaultValuePipe(false), ParseBoolPipe) includeDeleted = false,
   ): Promise<WorkItemResponse[]> {
-    return this.service.list(request.user, projectId);
+    return this.service.list(request.user, projectId, includeDeleted);
   }
 
   @Post()
@@ -35,12 +37,14 @@ export class WorkItemsController {
   }
 
   @Get(':itemId')
+  @ApiQuery({ name: 'includeDeleted', required: false, type: Boolean, description: 'ADMIN-only read access to a parcel in a deleted project' })
   detail(
     @Req() request: AuthenticatedRequest,
     @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
     @Param('itemId', new ParseUUIDPipe({ version: '4' })) itemId: string,
+    @Query('includeDeleted', new DefaultValuePipe(false), ParseBoolPipe) includeDeleted = false,
   ): Promise<WorkItemResponse> {
-    return this.service.detail(request.user, projectId, itemId);
+    return this.service.detail(request.user, projectId, itemId, includeDeleted);
   }
 
   @Patch(':itemId')

@@ -189,4 +189,29 @@ describe('ProjectDetailPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Đóng chi tiết' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+
+  it('keeps the deleted view when an ADMIN opens a parcel', async () => {
+    const item = {
+      id: 'item-1', projectId: 'p1', type: 'TASK', title: 'Công việc đã lưu',
+      description: null, status: 'TODO', priority: 'MEDIUM', dueDate: null,
+      assigneeId: null, labels: [], createdAt: '2026-10-19', updatedAt: '2026-10-19',
+    } as const;
+    vi.mocked(useProjectMembers).mockReturnValue({ data: { data: [] }, isPending: false, isError: false } as unknown as ReturnType<typeof useProjectMembers>);
+    vi.mocked(useProject).mockReturnValue({ data: {
+      id: 'p1', key: 'AIF', name: 'AI Factory', description: null, status: 'ACTIVE',
+      startDate: null, endDate: null, archivedAt: null, deletedAt: '2026-10-20T00:00:00.000Z', accessRole: 'ADMIN_VIEWER',
+      owner: { id: 'owner-1', displayName: 'Hào' }, createdAt: '2026-10-01', updatedAt: '2026-10-15',
+    }, isPending: false, isError: false } as unknown as ReturnType<typeof useProject>);
+    vi.mocked(useWorkItems).mockReturnValue({ data: [item], isPending: false, isError: false } as unknown as ReturnType<typeof useWorkItems>);
+    vi.mocked(useWorkItem).mockReturnValue({ data: item, isPending: false, isError: false } as unknown as ReturnType<typeof useWorkItem>);
+
+    renderDetail('admin-1', '/projects/p1?includeDeleted=true');
+    expect(useWorkItems).toHaveBeenCalledWith('p1', true);
+    const parcel = screen.getByRole('link', { name: 'Công việc đã lưu, Cần làm' });
+    expect(parcel).toHaveAttribute('href', '/projects/p1?includeDeleted=true&item=item-1');
+    await userEvent.click(parcel);
+    expect(useWorkItem).toHaveBeenCalledWith('p1', 'item-1', true);
+    expect(screen.getByRole('dialog', { name: 'Chi tiết Công việc đã lưu' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Thêm task' })).not.toBeInTheDocument();
+  });
 });

@@ -12,6 +12,7 @@ type WorkItemDetailProps = {
   projectId: string;
   itemId: string;
   canWrite: boolean;
+  includeDeleted?: boolean;
   onClose: () => void;
 };
 
@@ -21,8 +22,8 @@ function formatDate(date: string | null): string {
   return `${day}/${month}/${year}`;
 }
 
-export function WorkItemDetail({ projectId, itemId, canWrite, onClose }: WorkItemDetailProps) {
-  const itemQuery = useWorkItem(projectId, itemId);
+export function WorkItemDetail({ projectId, itemId, canWrite, includeDeleted = false, onClose }: WorkItemDetailProps) {
+  const itemQuery = useWorkItem(projectId, itemId, includeDeleted);
   const mutations = useWorkItemMutations(projectId);
   const closeButton = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLElement>(null);

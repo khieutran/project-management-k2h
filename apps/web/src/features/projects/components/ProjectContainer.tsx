@@ -15,10 +15,11 @@ type ProjectContainerProps = {
   project: Project;
   items?: WorkItem[];
   canWrite?: boolean;
+  includeDeleted?: boolean;
   onAdd?: (type: WorkItemType) => void;
 };
 
-export function ProjectContainer({ project, items = [], canWrite = false, onAdd }: ProjectContainerProps) {
+export function ProjectContainer({ project, items = [], canWrite = false, includeDeleted = false, onAdd }: ProjectContainerProps) {
   return (
     <section className="project-container-scene" aria-label={`Container ${project.name}`}>
       <div className="project-container-scene-heading">
@@ -38,7 +39,7 @@ export function ProjectContainer({ project, items = [], canWrite = false, onAdd 
                 <div className={`project-cargo-shelf-name is-${shelf.color}`}><h2>{shelf.label}</h2><span>{items.filter((item) => item.type === shelf.type).length}</span></div>
                 <div className="project-cargo-scroll" tabIndex={0} aria-label={`Cuộn ${shelf.label}`}>
                   {items.filter((item) => item.type === shelf.type).length ? items.filter((item) => item.type === shelf.type).map((item) => (
-                    <Link className="project-cargo-item" key={item.id} to={`?item=${item.id}`} aria-label={`${item.title}, ${STATUS_LABELS[item.status]}`}>
+                    <Link className="project-cargo-item" key={item.id} to={`?${includeDeleted ? 'includeDeleted=true&' : ''}item=${item.id}`} aria-label={`${item.title}, ${STATUS_LABELS[item.status]}`}>
                       <span className="project-cargo-item-code">{shelf.type[0]}-{item.id.slice(0, 6).toUpperCase()}</span>
                       <strong>{item.title}</strong>
                       <span className={`project-cargo-status is-${item.status.toLowerCase()}`}>{STATUS_LABELS[item.status]}</span>

@@ -15,8 +15,8 @@ describe('useWorkItemMutations', () => {
       login: vi.fn(), register: vi.fn(), logout: vi.fn(), request,
     };
     const wrapper = ({ children }: PropsWithChildren) => <AuthContext.Provider value={auth}><QueryClientProvider client={queryClient}>{children}</QueryClientProvider></AuthContext.Provider>;
-    const listKey = ['work-items', 'actor-1', 'project-1'];
-    const detailKey = [...listKey, 'item-1'];
+    const listKey = ['work-items', 'actor-1', 'project-1', false];
+    const detailKey = ['work-items', 'actor-1', 'project-1', 'item-1', false];
     queryClient.setQueryData(listKey, []);
     queryClient.setQueryData(detailKey, { id: 'item-1' });
     const { result } = renderHook(() => useWorkItemMutations('project-1'), { wrapper });

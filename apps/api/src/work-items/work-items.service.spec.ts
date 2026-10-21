@@ -34,7 +34,7 @@ describe('WorkItemsService', () => {
 
   it('lists items only after checking project read access', async () => {
     await expect(service.list(actor, project.id)).resolves.toHaveLength(1);
-    expect(access.findReadableProjectOrThrow).toHaveBeenCalledWith(actor, project.id);
+    expect(access.findReadableProjectOrThrow).toHaveBeenCalledWith(actor, project.id, { includeDeleted: false });
     expect(repository.find).toHaveBeenCalledWith(expect.objectContaining({ where: { projectId: project.id } }));
   });
 
@@ -42,6 +42,18 @@ describe('WorkItemsService', () => {
     access.findReadableProjectOrThrow.mockRejectedValue(new NotFoundException());
     await expect(service.list(actor, project.id)).rejects.toBeInstanceOf(NotFoundException);
     expect(repository.find).not.toHaveBeenCalled();
+  });
+
+  it('reads a deleted project’s parcels only in the explicit ADMIN view', async () => {
+    const admin = { ...actor, role: UserRole.Admin };
+    access.findReadableProjectOrThrow.mockImplementation((_user, _projectId, options) => {
+      if (!options?.includeDeleted) throw new NotFoundException();
+      return { project: { ...project, deletedAt: new Date() }, accessRole: ProjectAccessRole.AdminViewer };
+    });
+
+    await expect(Reflect.apply(service.list, service, [admin, project.id, true])).resolves.toHaveLength(1);
+    await expect(Reflect.apply(service.detail, service, [admin, project.id, item.id, true])).resolves.toMatchObject({ id: item.id });
+    expect(access.findReadableProjectOrThrow).toHaveBeenCalledWith(admin, project.id, { includeDeleted: true });
   });
 
   it('rejects an ADMIN viewer creating a parcel', async () => {

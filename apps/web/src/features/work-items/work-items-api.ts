@@ -5,11 +5,11 @@ type Request = ApiClient['request'];
 
 export function createWorkItemsApi(request: Request) {
   return {
-    list(projectId: string): Promise<WorkItem[]> {
-      return request(`/projects/${projectId}/work-items`, { authenticated: true });
+    list(projectId: string, includeDeleted = false): Promise<WorkItem[]> {
+      return request(`/projects/${projectId}/work-items${includeDeleted ? '?includeDeleted=true' : ''}`, { authenticated: true });
     },
-    detail(projectId: string, itemId: string): Promise<WorkItem> {
-      return request(`/projects/${projectId}/work-items/${itemId}`, { authenticated: true });
+    detail(projectId: string, itemId: string, includeDeleted = false): Promise<WorkItem> {
+      return request(`/projects/${projectId}/work-items/${itemId}${includeDeleted ? '?includeDeleted=true' : ''}`, { authenticated: true });
     },
     create(projectId: string, input: CreateWorkItemInput): Promise<WorkItem> {
       return request(`/projects/${projectId}/work-items`, {
