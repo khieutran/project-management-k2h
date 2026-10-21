@@ -4,6 +4,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
 } from "react";
 
@@ -12,6 +13,7 @@ import { authApi } from "../api/auth-api";
 import { createAccessTokenStore } from "./access-token-store";
 import { AuthContext, type AuthContextValue } from "./auth-context";
 import { authReducer } from "./auth-reducer";
+import { AuthEntranceTransition, ENTRANCE_COVER_MS, ENTRANCE_DURATION_MS } from "./AuthEntranceTransition";
 import type { AuthResponse, LoginInput, RegisterInput } from "./auth.types";
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -19,6 +21,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     status: "initializing",
   });
   const [tokenStore] = useState(createAccessTokenStore);
+  const [isEntering, setIsEntering] = useState(false);
+  const entranceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (entranceTimer.current !== null) clearTimeout(entranceTimer.current);
+  }, []);
 
   const commitSession = useCallback(
     (auth: AuthResponse): void => {
@@ -50,9 +58,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const login = useCallback(
     async (input: LoginInput | "demo"): Promise<void> => {
-      commitSession(
-        await (input === "demo" ? authApi.demo() : authApi.login(input)),
-      );
+      const auth = await (input === "demo" ? authApi.demo() : authApi.login(input));
+      if (!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+        setIsEntering(true);
+        if (entranceTimer.current !== null) clearTimeout(entranceTimer.current);
+        await new Promise<void>((resolve) => {
+          entranceTimer.current = setTimeout(() => {
+            entranceTimer.current = null;
+            resolve();
+          }, ENTRANCE_COVER_MS);
+        });
+        commitSession(auth);
+        entranceTimer.current = setTimeout(() => {
+          setIsEntering(false);
+          entranceTimer.current = null;
+        }, ENTRANCE_DURATION_MS - ENTRANCE_COVER_MS);
+        return;
+      }
+      commitSession(auth);
     },
     [commitSession],
   );
@@ -83,5 +106,5 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [apiClient.request, login, logout, register, state],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}{isEntering && <AuthEntranceTransition />}</AuthContext.Provider>;
 }

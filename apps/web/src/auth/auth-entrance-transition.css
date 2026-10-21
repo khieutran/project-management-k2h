@@ -1,0 +1,107 @@
+.auth-entrance {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  animation: auth-entrance-reveal 2.4s linear both;
+}
+
+.auth-entrance__road {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: clamp(150px, 20vh, 210px);
+  transform: translateY(-50%);
+  border-block: 4px solid #d1d5d3;
+  background: linear-gradient(#bcc3c0, #adb6b3 50%, #bcc3c0);
+  box-shadow: 0 12px 30px rgb(20 40 45 / 9%);
+  animation: auth-road-clear 2.4s linear both;
+}
+
+.auth-entrance__road > span {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  transform: translateY(-50%);
+  border-top: 4px dashed rgb(255 255 255 / 83%);
+}
+
+.auth-entrance__convoy {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 384px;
+  height: 120px;
+  animation: auth-truck-cross 1.35s ease-in-out both;
+}
+
+.auth-entrance__truck {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 96px;
+  height: 384px;
+  object-fit: contain;
+  transform: translate(144px, -50%) rotate(-90deg);
+  filter: drop-shadow(8px 8px 5px rgb(26 35 40 / 25%));
+}
+
+.auth-entrance__veil,
+.auth-entrance__particles {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.auth-entrance__veil {
+  background: #e9e5da;
+  animation: auth-smoke-cover 2.4s linear both;
+}
+
+.auth-entrance__particles {
+  z-index: 1;
+}
+
+@keyframes auth-truck-cross {
+  from { transform: translate(-454px, -50%); }
+  to { transform: translate(calc(100vw + 70px), -50%); }
+}
+
+@keyframes auth-smoke-cover {
+  0%, 32% { opacity: 0; }
+  43% { opacity: 0.65; }
+  50%, 64% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes auth-road-clear {
+  0%, 43% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes auth-entrance-reveal {
+  0%, 64% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (max-width: 540px) {
+  .auth-entrance__road { height: 150px; }
+  .auth-entrance__convoy { width: 300px; height: 96px; }
+  .auth-entrance__truck {
+    width: 75px;
+    height: 300px;
+    transform: translate(112.5px, -50%) rotate(-90deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-entrance,
+  .auth-entrance__road,
+  .auth-entrance__convoy,
+  .auth-entrance__veil { animation: none; }
+}
