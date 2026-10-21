@@ -18,6 +18,11 @@ export enum ProjectListView {
   Deleted = 'deleted',
 }
 
+export enum ProjectListSort {
+  UpdatedDesc = 'updated_desc',
+  CreatedAsc = 'created_asc',
+}
+
 export class ListProjectsQueryDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @Type(() => Number)
@@ -59,4 +64,9 @@ export class ListProjectsQueryDto {
   })
   @IsEnum(ProjectListView)
   view = ProjectListView.Current;
+
+  @ApiPropertyOptional({ enum: ProjectListSort, enumName: 'ProjectListSort', default: ProjectListSort.UpdatedDesc })
+  @IsOptional()
+  @IsEnum(ProjectListSort)
+  sort?: ProjectListSort = ProjectListSort.UpdatedDesc;
 }

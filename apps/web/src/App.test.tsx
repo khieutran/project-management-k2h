@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { AuthContext, type AuthContextValue } from './auth/auth-context';
 import type { AuthState } from './auth/auth.types';
+import { AuthenticatedQueryBoundary } from './query/AuthenticatedQueryBoundary';
 
 function renderApp(state: AuthState, initialPath: string) {
   const auth: AuthContextValue = {
@@ -12,14 +13,19 @@ function renderApp(state: AuthState, initialPath: string) {
     login: vi.fn(),
     register: vi.fn(),
     logout: vi.fn(),
-    request: vi.fn(),
+    request: vi.fn().mockResolvedValue({
+      data: [],
+      pagination: { page: 1, limit: 5, total: 0, totalPages: 0 },
+    }),
   };
 
   return render(
     <AuthContext.Provider value={auth}>
-      <MemoryRouter initialEntries={[initialPath]}>
-        <App />
-      </MemoryRouter>
+      <AuthenticatedQueryBoundary>
+        <MemoryRouter initialEntries={[initialPath]}>
+          <App />
+        </MemoryRouter>
+      </AuthenticatedQueryBoundary>
     </AuthContext.Provider>,
   );
 }
@@ -41,7 +47,7 @@ describe('App routes', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders the protected home for an authenticated user', () => {
+  it('renders the project overview for an authenticated user', () => {
     renderApp(
       {
         status: 'authenticated',
@@ -56,7 +62,7 @@ describe('App routes', () => {
     );
 
     expect(
-      screen.getByText('Xin chào, Nguyen Van A'),
+      screen.getByRole('heading', { name: 'Tổng quan' }),
     ).toBeInTheDocument();
   });
 });

@@ -31,6 +31,7 @@ export function createProjectsApi(request: Request) {
       if (query.search) params.set('search', query.search);
       if (query.status) params.set('status', query.status);
       params.set('view', query.view);
+      if (query.sort) params.set('sort', query.sort);
 
       return request(`/projects?${params.toString()}`, {
         authenticated: true,

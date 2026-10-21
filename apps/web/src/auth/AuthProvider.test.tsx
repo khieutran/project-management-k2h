@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { authApi } from '../api/auth-api';
 import { AuthProvider } from './AuthProvider';
@@ -64,6 +64,11 @@ function AuthProbe() {
 describe('AuthProvider', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('restores an authenticated session during bootstrap', async () => {
@@ -135,7 +140,12 @@ describe('AuthProvider', () => {
     await screen.findByText('unauthenticated');
     await user.click(screen.getByRole('button', { name: 'Login' }));
 
-    expect(await screen.findByText('authenticated')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Đang vào bãi dự án' })).toBeInTheDocument();
+    expect(screen.getByText('unauthenticated')).toBeInTheDocument();
+    expect(await screen.findByText('authenticated', {}, { timeout: 3000 })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('status', { name: 'Đang vào bãi dự án' })).not.toBeInTheDocument();
+    }, { timeout: 3000 });
     expect(mockedAuthApi.login).toHaveBeenCalledWith({
       email: 'user@example.com',
       password: 'password-123',

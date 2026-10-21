@@ -1,0 +1,109 @@
+.cargo-workspace {
+  --workspace-ink: #14243a;
+  --workspace-muted: #5c6b7e;
+  --workspace-line: #dce3e8;
+  --workspace-bg: #f5f8fa;
+  --workspace-blue: #152e4e;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  background: #f5f8fa;
+}
+
+.cargo-workspace .workspace-header {
+  position: relative;
+  z-index: 10;
+  border-bottom: 1px solid #dce3e8;
+  color: #152641;
+  background: #fff;
+  box-shadow: 0 0.25rem 1.2rem rgb(31 49 69 / 5%);
+}
+
+.cargo-workspace .workspace-header-inner {
+  width: 100%;
+  min-height: 4.7rem;
+  padding: 0 clamp(1rem, 2.2vw, 2.25rem);
+  gap: clamp(1.5rem, 5vw, 5rem);
+}
+
+.cargo-workspace .workspace-brand { align-items: center; gap: 0.65rem; }
+.cargo-workspace .workspace-brand-name { font-size: 1.55rem; letter-spacing: -0.065em; }
+.cargo-workspace .workspace-brand-name span { color: #152641; }
+.cargo-brand-mark {
+  position: relative;
+  display: block;
+  width: 1.85rem;
+  height: 1.85rem;
+  transform: rotate(-30deg) skew(8deg, 8deg);
+  border: 0.36rem solid #ec5b20;
+  border-radius: 0.15rem;
+  background: #ff8b39;
+  box-shadow: inset 0.25rem 0.25rem 0 #ffc18e;
+}
+.cargo-brand-mark span { position: absolute; top: -0.35rem; bottom: -0.35rem; left: 45%; width: 0.28rem; background: #fff; opacity: 0.85; }
+.cargo-workspace .workspace-navigation a { color: #53657b; }
+.cargo-workspace .workspace-navigation a:hover { color: #14243a; }
+.cargo-workspace .workspace-navigation a.active { border-bottom-color: #ec5b20; color: #14243a; }
+.cargo-workspace .workspace-account-avatar { border-color: #d6dde5; color: #243650; background: #e9eef3; }
+.cargo-workspace .workspace-account button { border-color: #d5dde6; color: #34455d; }
+.cargo-workspace .workspace-account button:hover { background: #f5f8fa; }
+
+.cargo-workspace-body {
+  display: grid;
+  grid-template-columns: 11.5rem minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+.cargo-sidebar {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2rem;
+  min-height: 0;
+  padding: 1.5rem 0.7rem 1.4rem;
+  border-right: 1px solid #e1e7ea;
+  overflow-y: auto;
+  background: #fff;
+}
+.cargo-sidebar nav { display: grid; gap: 0.35rem; }
+.cargo-sidebar a {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 2.85rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.4rem;
+  color: #53647a;
+  font-size: 0.85rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+.cargo-sidebar a span { display: grid; width: 1.3rem; place-items: center; color: #65778b; font-size: 1.2rem; line-height: 1; }
+.cargo-sidebar a:hover { color: #bb4319; background: #fff4ed; }
+.cargo-sidebar a.active { color: #d44d1d; background: #fff0e8; }
+.cargo-sidebar a.active span { color: #e95b22; }
+.cargo-sidebar-signature { padding: 0 0.75rem; color: #8b98a6; font-size: 0.66rem; }
+.cargo-workspace .workspace-main { width: 100%; min-width: 0; min-height: 0; max-width: none; margin: 0; padding: 1.6rem clamp(1rem, 2.1vw, 2.4rem) 3.5rem; overflow-y: auto; overscroll-behavior-y: contain; }
+.cargo-workspace .page-heading { margin-bottom: 1.15rem; }
+.cargo-workspace .page-heading h1 { letter-spacing: -0.055em; }
+.cargo-workspace .page-heading .home-eyebrow { color: #dc5927; }
+.cargo-workspace .primary-link { border-color: #e75a24; background: #e75a24; }
+.cargo-workspace .primary-link:hover { border-color: #bd3e18; background: #bd3e18; }
+.cargo-workspace .project-tabs .active { border-bottom-color: #e75a24; color: #c1471c; }
+.cargo-workspace .project-detail-header { margin-bottom: 1.15rem; }
+.cargo-workspace .project-detail-title h1 { margin-bottom: 0.6rem; }
+.cargo-workspace .project-breadcrumb { margin-bottom: 0.95rem; }
+
+@media (max-width: 64rem) {
+  .cargo-workspace-body { grid-template-columns: minmax(0, 1fr); }
+  .cargo-sidebar { display: none; }
+}
+
+@media (max-width: 46rem) {
+  .cargo-workspace .workspace-header-inner { min-height: 4.3rem; padding-inline: 1rem; }
+  .cargo-workspace .workspace-main { padding: 1.2rem 1rem 3rem; }
+  .cargo-workspace .workspace-brand-name { font-size: 1.35rem; }
+}

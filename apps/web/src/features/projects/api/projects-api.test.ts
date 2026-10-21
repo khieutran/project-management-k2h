@@ -22,6 +22,16 @@ describe('projectsApi', () => {
     );
   });
 
+  it('requests creation order for a seven-project yard page', async () => {
+    const request = vi.fn().mockResolvedValue({ data: [], pagination: {} });
+    await createProjectsApi(request).list({ page: 2, limit: 7, view: 'current', sort: 'created_asc' });
+
+    expect(request).toHaveBeenCalledWith(
+      '/projects?page=2&limit=7&view=current&sort=created_asc',
+      { authenticated: true },
+    );
+  });
+
   it('sends nullable fields when updating a project', async () => {
     const request = vi.fn().mockResolvedValue({ id: 'project-1' });
     const api = createProjectsApi(request);

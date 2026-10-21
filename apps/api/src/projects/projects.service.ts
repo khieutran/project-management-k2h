@@ -14,6 +14,7 @@ import type { CreateProjectDto } from './dto/create-project.dto';
 import type { ChangeProjectStatusDto } from './dto/change-project-status.dto';
 import {
   type ListProjectsQueryDto,
+  ProjectListSort,
   ProjectListView,
 } from './dto/list-projects-query.dto';
 import type { UpdateProjectDto } from './dto/update-project.dto';
@@ -133,10 +134,13 @@ export class ProjectsService {
       );
     }
 
-    queryBuilder
-      .orderBy('project.updatedAt', 'DESC')
-      .skip((query.page - 1) * query.limit)
-      .take(query.limit);
+    if (query.sort === ProjectListSort.CreatedAsc) {
+      queryBuilder.orderBy('project.createdAt', 'ASC').addOrderBy('project.id', 'ASC');
+    } else {
+      queryBuilder.orderBy('project.updatedAt', 'DESC');
+    }
+
+    queryBuilder.skip((query.page - 1) * query.limit).take(query.limit);
 
     const [projects, total] = await queryBuilder.getManyAndCount();
 

@@ -65,6 +65,20 @@ export const environmentSchema = z
       .max(86_400)
       .default(60),
 
+    DEMO_SESSION_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(3600)
+      .max(604800)
+      .default(86400),
+    DEMO_RATE_LIMIT: z.coerce.number().int().min(1).max(100).default(3),
+    DEMO_RATE_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(86400)
+      .default(3600),
+
     POSTGRES_HOST: z.string().min(1),
 
     POSTGRES_PORT: z.coerce.number().int().min(1).max(65535),

@@ -86,6 +86,10 @@ export class AuthService {
       throw this.createInvalidCredentials();
     }
 
+    if (user.demoExpiresAt) {
+      throw this.createInvalidCredentials();
+    }
+
     //Verify 2 password thong qua passwordService
     const passwordMatches = await this.passwordService.verify(
       user.passwordHash,
@@ -174,6 +178,13 @@ export class AuthService {
             throw this.createInvalidRefreshToken();
           }
 
+          if (
+            user.demoExpiresAt &&
+            user.demoExpiresAt.getTime() <= Date.now()
+          ) {
+            throw this.createExpiredRefreshToken();
+          }
+
           const replacementRefreshToken =
             this.tokenService.generateRefreshToken();
 
@@ -192,6 +203,7 @@ export class AuthService {
             userId: user.id,
             sessionId: replacementSession.id,
             role: user.role,
+            ...(user.demoExpiresAt ? { expiresAt: user.demoExpiresAt } : {}),
           });
 
           return {
@@ -200,8 +212,17 @@ export class AuthService {
               response: {
                 user: toSafeUser(user),
                 accessToken,
-                accessTokenExpiresIn:
-                  this.tokenService.getAccessTokenExpiresInSeconds(),
+                accessTokenExpiresIn: user.demoExpiresAt
+                  ? Math.min(
+                      this.tokenService.getAccessTokenExpiresInSeconds(),
+                      Math.max(
+                        1,
+                        Math.floor(
+                          (user.demoExpiresAt.getTime() - Date.now()) / 1000,
+                        ),
+                      ),
+                    )
+                  : this.tokenService.getAccessTokenExpiresInSeconds(),
               },
               refreshToken: replacementRefreshToken,
             },
@@ -231,7 +252,10 @@ export class AuthService {
   async getCurrentUser(userId: string): Promise<SafeUser> {
     const user = await this.usersService.findById(userId);
 
-    if (!user) {
+    if (
+      !user ||
+      (user.demoExpiresAt && user.demoExpiresAt.getTime() <= Date.now())
+    ) {
       throw this.createInvalidAccessToken();
     }
 

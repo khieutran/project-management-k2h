@@ -55,6 +55,7 @@ describe('ProjectsService', () => {
     andWhere: jest.Mock;
     withDeleted: jest.Mock;
     orderBy: jest.Mock;
+    addOrderBy: jest.Mock;
     skip: jest.Mock;
     take: jest.Mock;
     getManyAndCount: jest.Mock;
@@ -90,6 +91,7 @@ describe('ProjectsService', () => {
       andWhere: jest.fn().mockReturnThis(),
       withDeleted: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
       getManyAndCount: jest.fn(),
@@ -301,6 +303,21 @@ describe('ProjectsService', () => {
         ...overrides,
       });
     }
+
+    it('orders the yard by creation date with a stable ID tie breaker', async () => {
+      queryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
+
+      await projectsService.findAll(actor, {
+        page: 1,
+        limit: 7,
+        view: ProjectListView.Current,
+        sort: 'created_asc',
+      } as ListProjectsQueryDto);
+
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith('project.createdAt', 'ASC');
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith('project.id', 'ASC');
+      expect(queryBuilder.take).toHaveBeenCalledWith(7);
+    });
 
     it('lists current projects owned by or assigned to a USER with pagination metadata', async () => {
       const project = createLoadedProject();
