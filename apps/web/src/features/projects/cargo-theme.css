@@ -4,6 +4,12 @@
   --workspace-line: #dce3e8;
   --workspace-bg: #f5f8fa;
   --workspace-blue: #152e4e;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
   background: #f5f8fa;
 }
 
@@ -48,15 +54,18 @@
 .cargo-workspace-body {
   display: grid;
   grid-template-columns: 11.5rem minmax(0, 1fr);
-  min-height: calc(100vh - 4.7rem);
+  min-height: 0;
+  overflow: hidden;
 }
 .cargo-sidebar {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 2rem;
+  min-height: 0;
   padding: 1.5rem 0.7rem 1.4rem;
   border-right: 1px solid #e1e7ea;
+  overflow-y: auto;
   background: #fff;
 }
 .cargo-sidebar nav { display: grid; gap: 0.35rem; }
@@ -77,7 +86,7 @@
 .cargo-sidebar a.active { color: #d44d1d; background: #fff0e8; }
 .cargo-sidebar a.active span { color: #e95b22; }
 .cargo-sidebar-signature { padding: 0 0.75rem; color: #8b98a6; font-size: 0.66rem; }
-.cargo-workspace .workspace-main { width: 100%; min-width: 0; max-width: none; margin: 0; padding: 1.6rem clamp(1rem, 2.1vw, 2.4rem) 3.5rem; }
+.cargo-workspace .workspace-main { width: 100%; min-width: 0; min-height: 0; max-width: none; margin: 0; padding: 1.6rem clamp(1rem, 2.1vw, 2.4rem) 3.5rem; overflow-y: auto; overscroll-behavior-y: contain; }
 .cargo-workspace .page-heading { margin-bottom: 1.15rem; }
 .cargo-workspace .page-heading h1 { letter-spacing: -0.055em; }
 .cargo-workspace .page-heading .home-eyebrow { color: #dc5927; }

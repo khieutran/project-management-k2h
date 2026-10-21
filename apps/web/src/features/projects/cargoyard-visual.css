@@ -62,11 +62,11 @@
   text-align: left;
 }
 .cargo-workspace .yard-parking-row-bottom .yard-project-label { top: auto; bottom: 0.55rem; }
-.cargo-workspace .yard-project-label strong { display: flex; align-items: center; gap: 0.4rem; font-size: clamp(0.68rem, 1.06vw, 0.85rem); }
+.cargo-workspace .yard-project-label strong { display: flex; align-items: center; gap: 0.4rem; font-size: clamp(0.875rem, 1.06vw, 1rem); }
 .cargo-workspace .yard-project-label strong i { flex: 0 0 0.62rem; width: 0.62rem; height: 0.62rem; border-radius: 50%; background: var(--truck-color, #ec6324); box-shadow: inset 0 0 0 2px rgb(0 0 0 / 7%); }
 .cargo-workspace .yard-project-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.3rem; }
-.cargo-workspace .yard-project-meta > span:first-child { color: #64717b; font-size: 0.65rem; font-weight: 700; }
-.cargo-workspace .yard-project-status { flex: 0 0 auto; padding: 0.18rem 0.36rem; border-radius: 1rem; color: #176d5a !important; background: #d8f2eb; font-size: 0.59rem !important; font-weight: 750; }
+.cargo-workspace .yard-project-meta > span:first-child { color: #64717b; font-size: 0.75rem; font-weight: 700; }
+.cargo-workspace .yard-project-status { flex: 0 0 auto; padding: 0.18rem 0.36rem; border-radius: 1rem; color: #176d5a !important; background: #d8f2eb; font-size: 0.75rem !important; font-weight: 750; }
 .cargo-workspace .yard-project-status.is-planning { color: #52637b !important; background: #edf1f5; }
 .cargo-workspace .yard-project-status.is-completed { color: #2e6758 !important; background: #dcf3e9; }
 .cargo-workspace .yard-road {
@@ -119,11 +119,13 @@
 .cargo-workspace .project-cargo-shelf-name.is-blue { background: #205788; }
 .cargo-workspace .project-cargo-shelf-name.is-rust { background: #aa442e; }
 .cargo-workspace .project-cargo-shelf-name.is-teal { background: #15796e; }
-.cargo-workspace .project-cargo-shelf-name h2 { font-size: clamp(0.8rem, 1.28vw, 1.14rem); }
-.cargo-workspace .project-cargo-shelf-name > span { padding: 0.08rem 0.34rem; border-radius: 0.2rem; color: #fff; background: rgb(255 255 255 / 18%); font-size: 0.65rem; font-weight: 750; }
+.cargo-workspace .project-cargo-shelf-name h2 { font-size: clamp(0.9rem, 1.28vw, 1.14rem); }
+.cargo-workspace .project-cargo-shelf-name > span { padding: 0.08rem 0.34rem; border-radius: 0.2rem; color: #fff; background: rgb(255 255 255 / 18%); font-size: 0.75rem; font-weight: 750; }
 .cargo-workspace .project-cargo-scroll { align-items: stretch; padding: 0.26rem 0.35rem; }
-.cargo-workspace .project-cargo-item { flex-basis: clamp(7.2rem, 11vw, 10rem); max-width: clamp(7.2rem, 11vw, 10rem); padding: 0.38rem 0.5rem; border-color: #bd8656; border-radius: 0.18rem; background: linear-gradient(145deg, #efc596, #d9a573 53%, #c99161); box-shadow: inset 0.2rem 0.18rem 0 rgb(255 255 255 / 17%), 0.18rem 0.2rem 0 rgb(0 0 0 / 22%); }
-.cargo-workspace .project-cargo-item strong { font-size: 0.73rem; }
+.cargo-workspace .project-cargo-item { flex-basis: clamp(8.6rem, 12vw, 11.2rem); max-width: clamp(8.6rem, 12vw, 11.2rem); padding: 0.2rem 0.5rem; border-color: #bd8656; border-radius: 0.18rem; background: linear-gradient(145deg, #efc596, #d9a573 53%, #c99161); box-shadow: inset 0.2rem 0.18rem 0 rgb(255 255 255 / 17%), 0.18rem 0.2rem 0 rgb(0 0 0 / 22%); }
+.cargo-workspace .project-cargo-item-code { display: none; }
+.cargo-workspace .project-cargo-item strong { font-size: 0.875rem; line-height: 1.1; }
+.cargo-workspace .project-cargo-status { padding: 0.04rem 0.25rem; line-height: 1.1; }
 .cargo-workspace .project-cargo-add { width: clamp(4.2rem, 6vw, 6.5rem); margin: 0.32rem; border-color: #a7b6c2; color: #143b5b; background: rgb(237 242 247 / 92%); }
 .cargo-workspace .project-cargo-empty { color: #d5dfe4; }
 .cargo-workspace .project-cargo-empty p { color: #e2e8e8; }
@@ -141,20 +143,20 @@
 }
 
 @media (max-width: 64rem) {
-  .cargo-workspace .project-truck { aspect-ratio: 2.6 / 1; }
-  .cargo-workspace .project-cargo-item { flex-basis: 8.5rem; max-width: 8.5rem; }
+  .cargo-workspace .project-truck { aspect-ratio: auto; background: none; }
+  .cargo-workspace .project-truck-trailer { position: static; }
+  .cargo-workspace .project-truck-container { border: 0.4rem solid #36454f; background: #35444d; }
+  .cargo-workspace .project-cargo-shelf { min-height: 5.2rem; }
+  .cargo-workspace .project-cargo-shelf-name { margin: 0; }
+  .cargo-workspace .project-cargo-item { flex-basis: 8.8rem; max-width: 8.8rem; padding: 0.38rem 0.5rem; }
+  .cargo-workspace .project-cargo-item-code { display: block; }
+  .cargo-workspace .project-cargo-status { padding: 0.1rem 0.35rem; line-height: normal; }
 }
 
 @media (max-width: 46rem) {
   .cargo-workspace .yard-lot { display: none; }
   .cargo-workspace .yard-mobile-list { display: grid; }
   .cargo-workspace .project-container-scene { padding: 0.85rem; background: #eaf0f2; }
-  .cargo-workspace .project-truck { aspect-ratio: auto; background: none; }
-  .cargo-workspace .project-truck-trailer { position: static; }
-  .cargo-workspace .project-truck-container { border: 0.4rem solid #36454f; background: #35444d; }
-  .cargo-workspace .project-cargo-shelf { min-height: 5.2rem; }
-  .cargo-workspace .project-cargo-shelf-name { margin: 0; }
-  .cargo-workspace .project-cargo-item { flex-basis: 8rem; max-width: 8rem; }
-  .cargo-workspace .project-cargo-add { width: 3.8rem; }
+  .cargo-workspace .project-cargo-add { width: 4.4rem; }
   .cargo-workspace .work-item-detail-dialog { border-radius: 0; }
 }
