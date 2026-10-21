@@ -1,12 +1,20 @@
+import { useState, type FormEvent } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import { ProjectAccessBadge } from '../components/ProjectAccessBadge';
+import { ProjectContainer } from '../components/ProjectContainer';
 import { ProjectActions } from '../components/ProjectActions';
 import { ProjectMembersSection } from '../components/ProjectMembersSection';
 import { ProjectPageShell } from '../components/ProjectPageShell';
 import { ProjectStatusBadge } from '../components/ProjectStatusBadge';
 import { useProject } from '../hooks/use-projects';
 import type { ProjectStatus } from '../project.types';
+import type { WorkItemType } from '../../work-items/work-item.types';
+import { useWorkItemMutations, useWorkItems } from '../../work-items/use-work-items';
+import { WorkItemDetail } from '../../work-items/WorkItemDetail';
+
+import '../cargoyard.css';
+import '../cargoyard-visual.css';
 
 const STAGES: Array<{ status: ProjectStatus; label: string }> = [
   { status: 'PLANNING', label: 'Lập kế hoạch' },
@@ -22,9 +30,29 @@ function formatProjectDate(value: string | null): string {
 
 export function ProjectDetailPage() {
   const { projectId = '' } = useParams();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const selectedItemId = params.get('item');
   const projectQuery = useProject(projectId, params.get('includeDeleted') === 'true');
   const project = projectQuery.data;
+  const workItems = useWorkItems(projectId);
+  const workItemMutations = useWorkItemMutations(projectId);
+  const [creatingType, setCreatingType] = useState<WorkItemType | null>(null);
+  const [newItemTitle, setNewItemTitle] = useState('');
+  const [itemError, setItemError] = useState('');
+  const canWriteItems = Boolean(project && project.accessRole !== 'ADMIN_VIEWER' && !project.archivedAt && !project.deletedAt);
+
+  async function createItem(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!creatingType || !newItemTitle.trim()) return;
+    setItemError('');
+    try {
+      await workItemMutations.create.mutateAsync({ type: creatingType, title: newItemTitle.trim() });
+      setCreatingType(null);
+      setNewItemTitle('');
+    } catch {
+      setItemError('Không thể tạo công việc. Vui lòng thử lại.');
+    }
+  }
 
   return (
     <ProjectPageShell>
@@ -61,6 +89,30 @@ export function ProjectDetailPage() {
               <p className="readonly-note">Chế độ chỉ xem</p>
             )}
           </header>
+
+          {workItems.isPending ? <p role="status">Đang tải công việc...</p> : null}
+          {workItems.isError ? <p role="alert">Không thể tải công việc. <button type="button" onClick={() => void workItems.refetch()}>Thử lại</button></p> : null}
+          <ProjectContainer project={project} items={workItems.data ?? []} canWrite={canWriteItems} onAdd={(type) => { setCreatingType(type); setItemError(''); }} />
+
+          {creatingType ? (
+            <div className="work-item-dialog-backdrop" role="presentation">
+              <div className="work-item-create-dialog" role="dialog" aria-modal="true" aria-label={`Tạo ${creatingType.toLowerCase()}`}>
+                <div className="work-item-create-heading"><h2>Tạo {creatingType.toLowerCase()}</h2><button type="button" aria-label="Đóng" onClick={() => setCreatingType(null)}>×</button></div>
+                <form onSubmit={(event) => void createItem(event)}>
+                  <label htmlFor="work-item-title">Tên công việc</label>
+                  <input id="work-item-title" autoFocus required maxLength={160} value={newItemTitle} onChange={(event) => setNewItemTitle(event.target.value)} />
+                  {itemError ? <p role="alert">{itemError}</p> : null}
+                  <div className="work-item-create-actions"><button type="button" onClick={() => setCreatingType(null)}>Hủy</button><button type="submit" disabled={workItemMutations.create.isPending}>Tạo {creatingType.toLowerCase()}</button></div>
+                </form>
+              </div>
+            </div>
+          ) : null}
+
+          {selectedItemId ? <WorkItemDetail projectId={projectId} itemId={selectedItemId} canWrite={canWriteItems} onClose={() => {
+            const next = new URLSearchParams(params);
+            next.delete('item');
+            setParams(next, { replace: true });
+          }} /> : null}
 
           <div className="project-detail-grid">
             <section className="project-overview-panel" aria-labelledby="project-overview-title">
