@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsArray, IsDateString, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsArray, IsDateString, IsEnum, IsOptional, IsString, MaxLength, MinLength, ValidateIf } from 'class-validator';
 
 import { WorkItemPriority, WorkItemStatus, WorkItemType } from './work-item.enums';
 
@@ -44,7 +44,7 @@ export class CreateWorkItemDto {
 }
 
 export class UpdateWorkItemDto {
-  @IsOptional()
+  @ValidateIf((_object, value) => value !== undefined)
   @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
   @IsString()
   @MinLength(1)
@@ -56,11 +56,11 @@ export class UpdateWorkItemDto {
   @MaxLength(5000)
   description?: string | null;
 
-  @IsOptional()
+  @ValidateIf((_object, value) => value !== undefined)
   @IsEnum(WorkItemStatus)
   status?: WorkItemStatus;
 
-  @IsOptional()
+  @ValidateIf((_object, value) => value !== undefined)
   @IsEnum(WorkItemPriority)
   priority?: WorkItemPriority;
 
@@ -68,7 +68,7 @@ export class UpdateWorkItemDto {
   @IsDateString()
   dueDate?: string | null;
 
-  @IsOptional()
+  @ValidateIf((_object, value) => value !== undefined)
   @IsArray()
   @IsString({ each: true })
   @MaxLength(32, { each: true })

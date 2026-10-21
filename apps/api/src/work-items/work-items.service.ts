@@ -47,7 +47,7 @@ export class WorkItemsService {
   async update(actor: AuthenticatedPrincipal, projectId: string, itemId: string, input: UpdateWorkItemDto): Promise<WorkItemResponse> {
     await this.assertWritable(actor, projectId);
     const item = await this.findInProjectOrThrow(projectId, itemId);
-    Object.assign(item, input);
+    Object.assign(item, Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)));
     return toWorkItemResponse(await this.items.save(item));
   }
 

@@ -1,7 +1,9 @@
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
 
 import { ProjectAccessRole } from '../projects/enums/project-access-role.enum';
 import { UserRole } from '../users/enums/user-role.enum';
+import { UpdateWorkItemDto } from './work-item.dto';
 import { WorkItemsService } from './work-items.service';
 
 describe('WorkItemsService', () => {
@@ -56,5 +58,20 @@ describe('WorkItemsService', () => {
   it('hides an item belonging to another project', async () => {
     repository.findOne.mockResolvedValue({ ...item, projectId: 'project-2' });
     await expect(service.detail(actor, project.id, item.id)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('preserves omitted fields when updating one work item property', async () => {
+    repository.findOne.mockResolvedValue({ ...item });
+    const input = plainToInstance(UpdateWorkItemDto, { status: 'DONE' });
+
+    await service.update(actor, project.id, item.id, input);
+
+    expect(repository.save).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Build API',
+      description: null,
+      priority: 'MEDIUM',
+      status: 'DONE',
+      labels: [],
+    }));
   });
 });
