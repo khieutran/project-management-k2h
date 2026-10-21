@@ -13,6 +13,7 @@ import { createTypeOrmOptions } from './database/typeorm.config';
 import { HealthModule } from './health/health.module';
 import { ProjectMembersModule } from './project-members/project-members.module';
 import { ProjectsModule } from './projects/projects.module';
+import { WorkItemsModule } from './work-items/work-items.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { ProjectsModule } from './projects/projects.module';
     HealthModule,
     ProjectsModule,
     ProjectMembersModule,
+    WorkItemsModule,
   ],
   providers: [
     {
