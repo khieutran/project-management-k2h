@@ -586,6 +586,12 @@ PUBLIC_HEALTH_STATUS='success'
 
 promote_candidate_release
 
+# Daily database backups (service `backup` in compose.dev.yml). A backup problem
+# must not fail or roll back a deployment that is already healthy.
+if ! run_current_compose up -d --no-build backup; then
+  echo "WARNING: database backup service did not start; check: docker compose logs backup" >&2
+fi
+
 DEPLOYMENT_STATUS='success'
 ROLLBACK_STATUS='not_required'
 

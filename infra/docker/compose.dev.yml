@@ -108,5 +108,53 @@ services:
       retries: 5
       start_period: 5s
 
+  # Daily database dump into the postgres_dev_backups volume, newest 7 kept. Turns
+  # "unhealthy" in `docker compose ps` when the newest dump is missing or older than 26 hours.
+  # Copy one out: docker compose cp backup:/backups/<file>.dump .
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      BACKUP_KEEP: 7
+      BACKUP_EVERY_HOURS: 24
+    volumes:
+      - postgres_dev_backups:/backups
+    entrypoint:
+      - sh
+      - -c
+      - |
+        while true; do
+          newest=$$(ls -1t /backups/*.dump 2>/dev/null | head -n 1)
+          if [ -z "$$newest" ] || [ $$(( $$(date +%s) - $$(stat -c %Y "$$newest") )) -ge $$((BACKUP_EVERY_HOURS * 3600)) ]; then
+            file=/backups/$$PGDATABASE-$$(date -u +%Y%m%d-%H%M%S).dump
+            # Written under a temporary name and checked, so a failed dump never looks like a backup.
+            if pg_dump -Fc --no-owner -f "$$file.partial" && pg_restore --list "$$file.partial" >/dev/null; then
+              mv "$$file.partial" "$$file" && echo "backup: $$file"
+              ls -1t /backups/*.dump | tail -n +$$((BACKUP_KEEP + 1)) | xargs -r rm -f
+            else
+              rm -f "$$file.partial"
+              echo "backup: FAILED" >&2
+            fi
+          fi
+          sleep 3600
+        done
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'f=$$(ls -1t /backups/*.dump 2>/dev/null | head -n 1); [ -n "$$f" ] && [ $$(( $$(date +%s) - $$(stat -c %Y "$$f") )) -lt $$(( (BACKUP_EVERY_HOURS + 2) * 3600 )) ]',
+        ]
+      interval: 5m
+      timeout: 10s
+      start_period: 2m
+
 volumes:
   postgres_dev_data:
+  postgres_dev_backups:
