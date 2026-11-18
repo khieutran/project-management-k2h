@@ -730,6 +730,11 @@ assert_file_contains \
   'up -d --no-build --remove-orphans --wait api web'
 
 assert_file_contains \
+  'successful deployment starts the database backup service' \
+  "$COMMAND_LOG" \
+  'compose.yml up -d --no-build backup'
+
+assert_file_contains \
   'successful deployment checks public Web' \
   "$CURL_LOG" \
   'https://dev.example.test/'
